@@ -87,9 +87,10 @@ table.ledger th{font-size:.68rem;text-transform:uppercase;letter-spacing:.07em;c
   text-align:right;padding:4px 6px;border-bottom:1px solid var(--rule-strong);font-weight:600}
 table.ledger th:first-child, table.ledger td:first-child{text-align:left}
 table.ledger td{padding:5px 6px;border-bottom:1px solid var(--rule);text-align:right;white-space:nowrap}
-table.ledger td input{width:84px;padding:4px 6px;border:1px solid transparent;border-radius:6px;
+table.ledger td input{width:82px;max-width:100%;padding:5px 6px;border:1px solid transparent;border-radius:6px;
   background:transparent;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:.88rem}
-table.ledger td input.lab{width:130px;text-align:left;font-family:'Public Sans',sans-serif}
+table.ledger td.labCol{width:99%;text-align:left;white-space:normal}
+table.ledger td input.lab{width:100%;min-width:120px;text-align:left;font-family:'Public Sans',sans-serif}
 table.ledger td input:hover{border-color:var(--rule-strong)}
 table.ledger td input:focus{border-color:var(--ledger);background:#fff;outline:none}
 table.ledger tr.sumRow td{border-top:1px solid var(--rule-strong);border-bottom:none;
@@ -100,11 +101,15 @@ table.ledger tr.sumRow td{border-top:1px solid var(--rule-strong);border-bottom:
 .kb .val{font-size:1.02rem;font-weight:600;padding-top:2px}
 .rowDel{color:var(--muted);font-size:.95rem;padding:2px 6px}
 .rowDel:hover{color:var(--minus)}
-.grpCap{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);
-  font-weight:600;padding:10px 6px 4px;border-bottom:1px solid var(--rule-strong)}
+.grpCap{padding:12px 4px 4px;border-bottom:1px solid var(--rule-strong)}
+.grpCap input{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);
+  font-weight:600;border:none;background:transparent;width:100%;padding:2px}
+.grpCap input:focus{outline:none;color:var(--ink)}
 .sectionCap{font-size:.75rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);
   font-weight:600;margin:18px 6px 8px}
-.statLine{display:flex;justify-content:space-between;padding:7px 4px;border-bottom:1px solid var(--rule);font-size:.92rem}
+.statLine{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;
+  padding:8px 4px;border-bottom:1px solid var(--rule);font-size:.9rem}
+.statLine>span:first-child{flex:1;min-width:150px}
 .statLine:last-child{border:none}
 .statLine b{font-weight:600}
 .chartBox{position:relative;width:100%;max-height:260px;min-height:200px}
@@ -122,6 +127,19 @@ nav.tabs .ico{font-size:1.2rem;line-height:1}
   margin-left:6px;opacity:0;transition:opacity .3s}
 .saveDot.on{opacity:1}
 .pill{font-size:.72rem;background:#EDEAE0;border-radius:99px;padding:3px 9px;color:var(--muted)}
+h3 input.titleInp{font-family:'Newsreader',serif;font-weight:700;font-size:1.08rem;
+  border:none;background:transparent;width:100%;padding:2px 0}
+h3 input.titleInp:focus{outline:none;border-bottom:1px solid var(--ledger)}
+.cardHeadRow h3{flex:1;min-width:0}
+.card{padding:14px 12px}
+@media(max-width:430px){
+  table.ledger{font-size:.82rem}
+  table.ledger td{padding:4px 3px}
+  table.ledger td input{width:70px;font-size:.82rem}
+  table.ledger th{font-size:.62rem;padding:4px 3px}
+  .kb .val{font-size:.92rem}
+  main{padding:12px 8px 8px}
+}
 @media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
@@ -211,30 +229,48 @@ const pAmt=s=>{const v=parseFloat(String(s).replace(/'/g,'').replace(/,/g,'.'));
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 function toast(m){const t=document.createElement('div');t.className='toast';t.textContent=m;
   document.body.appendChild(t);setTimeout(()=>t.remove(),2400);}
-const emptyYear=()=>({calc:{current:{start:0,income:[],groups:[[],[],[]]},next:{start:0,income:[],groups:[[],[],[]]}},
+const mkGroups=()=>GROUP_NAMES.map(n=>({name:n,items:[]}));
+const emptyYear=()=>({calc:{current:{start:0,income:[],groups:mkGroups()},next:{start:0,income:[],groups:mkGroups()}},
   accounts:[],fixkosten:{items:[],transfer:0,base:0,monate:MONTHS.map(m=>({monat:m,ein:0,abgaenge:[]}))},
   ccCalc:{current:[],next:[],cashbackRate:0.003},ccOwn:[],ccShared:[],investments:[]});
 function Y(){ if(!years[year]) years[year]=emptyYear(); return years[year]; }
+function normalizeYear(d){
+  if(!d) return d;
+  ['current','next'].forEach(s=>{
+    const c=d.calc?.[s]; if(!c) return;
+    if(Array.isArray(c.groups) && c.groups.length && Array.isArray(c.groups[0]))
+      c.groups=c.groups.map((g,i)=>({name:GROUP_NAMES[i]||'Weitere',items:g}));
+    if(!Array.isArray(c.groups)||!c.groups.length) c.groups=mkGroups();
+    c.groups.forEach(g=>{g.items=g.items||[];});
+  });
+  (d.fixkosten?.monate||[]).forEach(m=>{
+    if(m.abgaenge){m.abg=(m.abgaenge||[]).reduce((a,x)=>a+x,0);delete m.abgaenge;}});
+  return d;
+}
 
 /* ---------- Persistenz ---------- */
 const col=()=>db.collection('users').doc(uid).collection('finance');
 let saveTimer=null;
+async function flushSave(){
+  for(const id of Object.keys(dirty)){
+    const data=id==='settings'?settings:years[id];
+    if(!data) continue;
+    try{ await col().doc(id).set(JSON.parse(JSON.stringify(data))); delete dirty[id]; }
+    catch(e){ console.error('Speichern fehlgeschlagen',id,e);
+      toast('Speichern fehlgeschlagen: '+(e.message||e.code)); return false; }
+  }
+  $('saveDot').classList.remove('on'); return true;
+}
 function save(docId){
   dirty[docId]=true; $('saveDot').classList.add('on');
   clearTimeout(saveTimer);
-  saveTimer=setTimeout(async()=>{
-    for(const id of Object.keys(dirty)){
-      const data=id==='settings'?settings:years[id];
-      if(data) await col().doc(id).set(JSON.parse(JSON.stringify(data)));
-    }
-    dirty={}; $('saveDot').classList.remove('on');
-  },900);
+  saveTimer=setTimeout(flushSave,900);
 }
 async function loadAll(){
   const s=await col().get();
   years={};
   s.docs.forEach(d=>{ if(d.id==='settings') settings={...settings,...d.data()};
-    else years[d.id]=d.data(); });
+    else years[d.id]=normalizeYear(d.data()); });
   const ys=Object.keys(years).sort();
   if(ys.length && !years[year]) year=ys[ys.length-1];
   renderYear();
@@ -326,7 +362,7 @@ document.addEventListener('click',e=>{
 function calcSide(s){
   const inc=(s.income||[]).reduce((a,i)=>a+(i.value||0),0);
   const total=(s.start||0)+inc;
-  const aus=(s.groups||[]).flat().reduce((a,i)=>a+(i.value||0),0);
+  const aus=(s.groups||[]).reduce((a,g)=>a+(g.items||[]).reduce((x,i)=>x+(i.value||0),0),0);
   const rest=total-aus;
   return {inc,total,aus,rest,zuwachs:rest-(s.start||0),
     moegl:rest-(settings.lohnkontoZiel||4000)};
@@ -338,20 +374,20 @@ function sideCard(side,title){
   h+='</div><table class="ledger"><tbody>';
   h+='<tr><td>Startkapital Zahlungskonto</td><td>'+inp('calc.'+side+'.start',s.start)+'</td><td></td></tr>';
   (s.income||[]).forEach((i,ix)=>{
-    h+='<tr><td>'+inp('calc.'+side+'.income.'+ix+'.label',i.label,{lab:1,kind:'text'})+'</td>'+
+    h+='<tr><td class="labCol">'+inp('calc.'+side+'.income.'+ix+'.label',i.label,{lab:1,kind:'text'})+'</td>'+
        '<td>'+inp('calc.'+side+'.income.'+ix+'.value',i.value)+'</td>'+
        '<td><button class="rowDel" data-act="del" data-p="calc.'+side+'.income" data-i="'+ix+'">✕</button></td></tr>';
   });
   h+='<tr><td colspan="3"><button class="miniBtn ghost" data-act="add" data-p="calc.'+side+'.income">＋ Lohn/Gutschrift</button></td></tr>';
   h+='<tr class="sumRow"><td>Total Kapital vorhanden</td><td class="num">'+fmt(c.total)+'</td><td></td></tr>';
   (s.groups||[]).forEach((g,gi)=>{
-    h+='<tr><td colspan="3" class="grpCap" style="border:none;padding-top:12px">'+(GROUP_NAMES[gi]||'Weitere')+'</td></tr>';
-    g.forEach((i,ix)=>{
-      h+='<tr><td>'+inp('calc.'+side+'.groups.'+gi+'.'+ix+'.label',i.label,{lab:1,kind:'text'})+'</td>'+
-         '<td>'+inp('calc.'+side+'.groups.'+gi+'.'+ix+'.value',i.value)+'</td>'+
-         '<td><button class="rowDel" data-act="del" data-p="calc.'+side+'.groups.'+gi+'" data-i="'+ix+'">✕</button></td></tr>';
+    h+='<tr><td colspan="3" class="grpCap">'+inp('calc.'+side+'.groups.'+gi+'.name',g.name,{kind:'text'})+'</td></tr>';
+    (g.items||[]).forEach((i,ix)=>{
+      h+='<tr><td class="labCol">'+inp('calc.'+side+'.groups.'+gi+'.items.'+ix+'.label',i.label,{lab:1,kind:'text'})+'</td>'+
+         '<td>'+inp('calc.'+side+'.groups.'+gi+'.items.'+ix+'.value',i.value)+'</td>'+
+         '<td><button class="rowDel" data-act="del" data-p="calc.'+side+'.groups.'+gi+'.items" data-i="'+ix+'">✕</button></td></tr>';
     });
-    h+='<tr><td colspan="3"><button class="miniBtn ghost" data-act="add" data-p="calc.'+side+'.groups.'+gi+'">＋ Position</button></td></tr>';
+    h+='<tr><td colspan="3" style="border:none"><button class="miniBtn ghost" data-act="add" data-p="calc.'+side+'.groups.'+gi+'.items">＋ Position</button></td></tr>';
   });
   h+='<tr class="sumRow"><td>Summe Ausgaben</td><td class="num">'+fmt(c.aus)+'</td><td></td></tr>';
   h+='</tbody></table>';
@@ -393,14 +429,14 @@ function renderKonten(){
     const plusSum=(a.months||[]).reduce((x,m)=>x+(m.plus||0),0);
     const minusSum=(a.months||[]).reduce((x,m)=>x+(m.minus||0),0);
     const hasProg=(a.months||[]).some(m=>m.prognose!=null);
-    h+='<div class="card"><div class="cardHeadRow"><h3>'+inp('accounts.'+ai+'.name',a.name,{lab:1,kind:'text'})+'</h3>'+
+    h+='<div class="card"><div class="cardHeadRow"><h3><input class="titleInp" data-path="accounts.'+ai+'.name" data-kind="text" value="'+esc(a.name)+'"></h3>'+
       '<button class="miniBtn danger" data-act="delAcc" data-i="'+ai+'">Löschen</button></div>'+
       '<table class="ledger"><thead><tr><th>Monat</th>'+(hasProg?'<th>Prognose</th>':'')+
       '<th>＋</th><th>−</th><th>Saldo</th></tr></thead><tbody>';
     h+='<tr><td>Start</td>'+(hasProg?'<td></td>':'')+'<td></td><td></td><td>'+inp('accounts.'+ai+'.start',a.start)+'</td></tr>';
     MONTHS.forEach((M,mi)=>{
       const m=a.months[mi]||{};
-      h+='<tr><td>'+M+'</td>'+
+      h+='<tr><td>'+M.slice(0,3)+'</td>'+
         (hasProg?'<td>'+inp('accounts.'+ai+'.months.'+mi+'.prognose',m.prognose??'')+'</td>':'')+
         '<td>'+inp('accounts.'+ai+'.months.'+mi+'.plus',m.plus||'')+'</td>'+
         '<td>'+inp('accounts.'+ai+'.months.'+mi+'.minus',m.minus||'')+'</td>'+
@@ -429,7 +465,7 @@ function renderFix(){
     '<button class="miniBtn ghost" data-act="add" data-p="fixkosten.items">＋ Position</button></div>'+
     '<table class="ledger"><tbody>';
   (fk.items||[]).forEach((i,ix)=>{
-    h+='<tr><td>'+inp('fixkosten.items.'+ix+'.label',i.label,{lab:1,kind:'text'})+'</td>'+
+    h+='<tr><td class="labCol">'+inp('fixkosten.items.'+ix+'.label',i.label,{lab:1,kind:'text'})+'</td>'+
       '<td>'+inp('fixkosten.items.'+ix+'.value',i.value)+'</td>'+
       '<td><button class="rowDel" data-act="del" data-p="fixkosten.items" data-i="'+ix+'">✕</button></td></tr>';});
   h+='<tr class="sumRow"><td>Total pro Jahr</td><td class="num"><span class="dblRule">'+fmt(sum)+'</span></td><td></td></tr>';
@@ -444,7 +480,7 @@ function renderFix(){
   (fk.monate||[]).forEach((m,mi)=>{
     const abg=abgOf(m); einSum+=m.ein||0; abgSum+=abg;
     run=Math.round((run+(m.ein||0)-abg)*100)/100;
-    h+='<tr><td>'+m.monat+'</td><td>'+inp('fixkosten.monate.'+mi+'.ein',m.ein||'')+'</td>'+
+    h+='<tr><td>'+m.monat.slice(0,3)+'</td><td>'+inp('fixkosten.monate.'+mi+'.ein',m.ein||'')+'</td>'+
       '<td>'+inp('fixkosten.monate.'+mi+'.abg',abg||'')+'</td>'+
       '<td class="num '+(run<0?'neg':'')+'">'+fmt(run)+'</td></tr>';});
   h+='<tr class="sumRow"><td>Total</td><td class="num pos">'+fmt(einSum)+'</td>'+
@@ -469,7 +505,7 @@ function renderKK(){
       '<button class="miniBtn ghost" data-act="add" data-p="ccCalc.'+side+'">＋ Posten</button></div>'+
       '<table class="ledger"><tbody>';
     (cc[side]||[]).forEach((i,ix)=>{
-      h+='<tr><td>'+inp('ccCalc.'+side+'.'+ix+'.label',i.label,{lab:1,kind:'text'})+'</td>'+
+      h+='<tr><td class="labCol">'+inp('ccCalc.'+side+'.'+ix+'.label',i.label,{lab:1,kind:'text'})+'</td>'+
         '<td>'+inp('ccCalc.'+side+'.'+ix+'.value',i.value)+'</td>'+
         '<td><button class="rowDel" data-act="del" data-p="ccCalc.'+side+'" data-i="'+ix+'">✕</button></td></tr>';});
     h+='<tr class="sumRow"><td>Total</td><td class="num"><span class="dblRule">'+fmt(tot)+'</span></td><td></td></tr></tbody></table>'+
@@ -487,7 +523,7 @@ function renderKK(){
     h+='<div class="card"><h3>'+title+'</h3><table class="ledger"><thead><tr><th>Monat</th><th>Total</th>'+
       (shared?'<th>davon Ferien/Einmalig</th>':'')+'</tr></thead><tbody>';
     MONTHS.forEach((M,mi)=>{
-      h+='<tr><td>'+M+'</td><td>'+inp(key+'.'+mi+'.amount',totals[mi]||'')+'</td>'+
+      h+='<tr><td>'+M.slice(0,3)+'</td><td>'+inp(key+'.'+mi+'.amount',totals[mi]||'')+'</td>'+
         (shared?'<td>'+inp(key+'.'+mi+'.ferien',ferien[mi]||'')+'</td>':'')+'</tr>';});
     h+='</tbody></table>'+
       '<div class="statLine"><span>Ø pro Monat ('+n+' Monate)</span><b class="num">'+fmt(avg)+'</b></div>'+
@@ -594,11 +630,12 @@ document.addEventListener('change',async e=>{
     const seed=JSON.parse(await e.target.files[0].text());
     settings={...settings,...seed.settings};
     for(const [yr,data] of Object.entries(seed.years||{})){
-      (data.fixkosten?.monate||[]).forEach(m=>{m.abg=(m.abgaenge||[]).reduce((a,x)=>a+x,0);delete m.abgaenge;});
-      years[yr]=data; dirty[yr]=true;
+      years[yr]=normalizeYear(data); dirty[yr]=true;
     }
-    save('settings');
-    toast('Alle Jahre importiert – wird gespeichert …');
+    dirty['settings']=true;
+    toast('Importiere und speichere …');
+    const ok=await flushSave();
+    if(ok) toast('Alle Jahre importiert und gespeichert ✓');
     renderTab();
   }catch(err){ toast('Import fehlgeschlagen: keine gültige seed.json'); }
   e.target.value='';
