@@ -90,7 +90,11 @@ table.ledger td{padding:5px 6px;border-bottom:1px solid var(--rule);text-align:r
 table.ledger td input{width:82px;max-width:100%;padding:5px 6px;border:1px solid transparent;border-radius:6px;
   background:transparent;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:.88rem}
 table.ledger td.labCol{width:99%;text-align:left;white-space:normal}
-table.ledger td input.lab{width:100%;min-width:120px;text-align:left;font-family:'Public Sans',sans-serif}
+.labEdit{min-width:110px;text-align:left;font-family:'Public Sans',sans-serif;
+  white-space:normal;overflow-wrap:anywhere;padding:4px 6px;border-radius:6px;
+  border:1px solid transparent;line-height:1.3}
+.labEdit:hover{border-color:var(--rule-strong)}
+.labEdit:focus{border-color:var(--ledger);background:#fff;outline:none}
 table.ledger td input:hover{border-color:var(--rule-strong)}
 table.ledger td input:focus{border-color:var(--ledger);background:#fff;outline:none}
 table.ledger tr.sumRow td{border-top:1px solid var(--rule-strong);border-bottom:none;
@@ -132,6 +136,17 @@ h3 input.titleInp{font-family:'Newsreader',serif;font-weight:700;font-size:1.08r
 h3 input.titleInp:focus{outline:none;border-bottom:1px solid var(--ledger)}
 .cardHeadRow h3{flex:1;min-width:0}
 .card{padding:14px 12px}
+.scrollX{overflow-x:auto;margin:0 -12px;padding:0 12px}
+.scrollX table.ledger td:first-child, .scrollX table.ledger th:first-child{
+  position:sticky;left:0;background:var(--card);z-index:2}
+.bar{height:9px;border-radius:99px;background:#EAE6D8;overflow:hidden;margin-top:6px}
+.bar>i{display:block;height:100%;border-radius:99px;background:var(--plus);transition:width .4s}
+.bar.warn>i{background:var(--warn)} .bar.over>i{background:var(--minus)}
+.dashGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.dashCell{background:var(--card);border:1px solid #ECE8DA;border-radius:var(--radius);
+  box-shadow:var(--shadow);padding:12px}
+.dashCell .cap{font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.dashCell .val{font-size:1.15rem;font-weight:600;margin-top:3px}
 @media(max-width:430px){
   table.ledger{font-size:.82rem}
   table.ledger td{padding:4px 3px}
@@ -185,14 +200,16 @@ h3 input.titleInp:focus{outline:none;border-bottom:1px solid var(--ledger)}
     </div>
   </header>
   <main>
-    <section id="tabMonat"></section>
+    <section id="tabDash"></section>
+    <section id="tabMonat" class="hidden"></section>
     <section id="tabKonten" class="hidden"></section>
     <section id="tabFix" class="hidden"></section>
     <section id="tabKK" class="hidden"></section>
     <section id="tabMehr" class="hidden"></section>
   </main>
   <nav class="tabs">
-    <button data-tab="tabMonat" class="on"><span class="ico">📖</span>Monat</button>
+    <button data-tab="tabDash" class="on"><span class="ico">🏠</span>Übersicht</button>
+    <button data-tab="tabMonat"><span class="ico">📖</span>Monat</button>
     <button data-tab="tabKonten"><span class="ico">🏦</span>Konten</button>
     <button data-tab="tabFix"><span class="ico">📌</span>Fixkosten</button>
     <button data-tab="tabKK"><span class="ico">💳</span>Karten</button>
@@ -320,17 +337,18 @@ $('btnLogout').onclick=()=>auth.signOut();
 /* ---------- Jahr & Tabs ---------- */
 $('yPrev').onclick=()=>{year=String(+year-1);renderYear();};
 $('yNext').onclick=()=>{year=String(+year+1);renderYear();};
-let activeTab='tabMonat';
+let activeTab='tabDash';
 document.querySelectorAll('nav.tabs button').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('nav.tabs button').forEach(x=>x.classList.remove('on'));
   b.classList.add('on'); activeTab=b.dataset.tab;
-  ['tabMonat','tabKonten','tabFix','tabKK','tabMehr'].forEach(id=>
+  ['tabDash','tabMonat','tabKonten','tabFix','tabKK','tabMehr'].forEach(id=>
     $(id).classList.toggle('hidden',id!==activeTab));
   renderTab(); window.scrollTo(0,0);
 });
 function renderYear(){ $('yLabel').textContent=year; renderTab(); }
 function renderTab(){
-  if(activeTab==='tabMonat')renderMonat();
+  if(activeTab==='tabDash')renderDash();
+  else if(activeTab==='tabMonat')renderMonat();
   else if(activeTab==='tabKonten')renderKonten();
   else if(activeTab==='tabFix')renderFix();
   else if(activeTab==='tabKK')renderKK();
@@ -342,11 +360,20 @@ function getPath(root,path){return path.split('.').reduce((o,k)=>o?.[k],root);}
 function setPath(root,path,val){const ks=path.split('.');const last=ks.pop();
   const o=ks.reduce((o,k)=>o[k],root); o[last]=val;}
 function inp(path,val,opts={}){
-  return '<input data-path="'+path+'" data-kind="'+(opts.kind||'num')+'" '+
-    (opts.lab?'class="lab" ':'')+'value="'+(opts.lab?esc(val):(val??''))+'">';
+  if(opts.lab) return '<div class="labEdit" contenteditable="plaintext-only" '+
+    'data-path="'+path+'" data-kind="text">'+esc(val)+'</div>';
+  return '<input data-path="'+path+'" data-kind="'+(opts.kind||'num')+'" value="'+(val??'')+'">';
 }
+document.addEventListener('focusout',e=>{
+  const el=e.target;
+  if(!el.classList||!el.classList.contains('labEdit')||!el.dataset.path) return;
+  const scope=el.dataset.scope||'year';
+  setPath(scope==='settings'?settings:Y(),el.dataset.path,el.textContent.trim());
+  save(scope==='settings'?'settings':year);
+  renderTab();
+});
 document.addEventListener('change',e=>{
-  const el=e.target; if(!el.dataset||!el.dataset.path) return;
+  const el=e.target; if(!el.dataset||!el.dataset.path||el.classList.contains('labEdit')) return;
   const kind=el.dataset.kind;
   const val=kind==='num'?pAmt(el.value):el.value;
   const scope=el.dataset.scope||'year';
@@ -358,6 +385,54 @@ document.addEventListener('click',e=>{
   const a=e.target.closest('[data-act]'); if(!a) return;
   handleAction(a.dataset); 
 });
+/* ================= ÜBERSICHT ================= */
+function bar(pct,warnAt){
+  const cls=pct>=100?'':(warnAt&&pct>=warnAt?'warn':'');
+  return '<div class="bar '+cls+'"><i style="width:'+Math.min(100,Math.max(0,pct))+'%"></i></div>';
+}
+function renderDash(){
+  if(!years[year]){renderMonat();$('tabDash').innerHTML=$('tabMonat').innerHTML;return;}
+  const yy=Y();
+  const c=calcSide(yy.calc.current);
+  const accs=yy.accounts||[];
+  const nowMi=(year===String(new Date().getFullYear()))?new Date().getMonth():11;
+  const nw=accs.reduce((a,ac)=>a+accountSaldi(ac)[nowMi],0);
+  const nwStart=accs.reduce((a,ac)=>a+(ac.start||0),0);
+  const gespart=accs.reduce((a,ac)=>a+(ac.months||[]).reduce((x,m)=>x+(m.plus||0)-(m.minus||0),0),0);
+  const lohnJahr=yy.lohnJahr||Math.round(c.inc*13);
+  const sparquote=lohnJahr?gespart/lohnJahr*100:0;
+  const fire=settings.fire||{};
+  const fSum=(fire.items||[]).reduce((a,i)=>a+(i.value||0),0);
+  const noetig=fire.entnahmerate?fSum/fire.entnahmerate:0;
+  const notAcc=accs.find(a=>/sparkonto/i.test(a.name)&&!/steuer/i.test(a.name));
+  const notSaldo=notAcc?accountSaldi(notAcc)[nowMi]:0;
+  const notZiel=settings.notgroschenZiel||30000;
+  let h='<div class="dashGrid">'+
+    '<div class="dashCell"><div class="cap">Restguthaben Monat</div>'+
+      '<div class="val num"><span class="dblRule '+(c.rest<0?'neg':'')+'">'+fmt(c.rest)+'</span></div></div>'+
+    '<div class="dashCell"><div class="cap">Mögliches Sparen</div>'+
+      '<div class="val num '+(c.moegl<0?'neg':'pos')+'">'+fmt(c.moegl)+'</div></div>'+
+    '<div class="dashCell"><div class="cap">Nettowert ('+MONTHS[nowMi].slice(0,3)+')</div>'+
+      '<div class="val num">'+fmt(nw)+'</div></div>'+
+    '<div class="dashCell"><div class="cap">Zuwachs im Jahr</div>'+
+      '<div class="val num '+(nw-nwStart<0?'neg':'pos')+'">'+fmt(nw-nwStart)+'</div></div>'+
+    '</div>';
+  h+='<div class="card" style="margin-top:12px"><h3>Sparquote '+year+'</h3>'+
+    '<div class="statLine"><span>Gespart (alle Konten, ＋ − −)</span><b class="num pos">'+fmt(gespart)+'</b></div>'+
+    '<div class="statLine"><span>Jahreslohn (editierbar)</span><b>'+inp('lohnJahr',lohnJahr)+'</b></div>'+
+    '<div class="statLine"><span>Sparquote</span><b class="num"><span class="dblRule">'+sparquote.toFixed(1)+' %</span></b></div>'+
+    bar(sparquote*2.5)+'<p class="hint" style="margin-top:5px">Balken voll bei 40 % Sparquote</p></div>';
+  h+='<div class="card"><h3>Notgroschen (Regel 2)</h3>'+
+    '<div class="statLine"><span>'+esc(notAcc?notAcc.name:'Sparkonto')+'</span>'+
+    '<b class="num">'+fmt(notSaldo)+' / '+fmt(notZiel)+'</b></div>'+bar(notSaldo/notZiel*100,80)+'</div>';
+  h+='<div class="card"><h3>FIRE-Fortschritt</h3>'+
+    '<div class="statLine"><span>Nettowert vs. benötigtes Vermögen</span>'+
+    '<b class="num">'+fmt(nw)+' / '+fmt(noetig)+'</b></div>'+bar(nw/(noetig||1)*100)+
+    '<div class="statLine" style="border:none"><span>Fortschritt</span><b class="num">'+
+    (noetig?(nw/noetig*100).toFixed(1):'–')+' %</b></div></div>';
+  $('tabDash').innerHTML=h;
+}
+
 /* ================= MONAT ================= */
 function calcSide(s){
   const inc=(s.income||[]).reduce((a,i)=>a+(i.value||0),0);
@@ -370,7 +445,8 @@ function calcSide(s){
 function sideCard(side,title){
   const s=Y().calc[side], c=calcSide(s);
   let h='<div class="card"><div class="cardHeadRow"><h3>'+title+'</h3>';
-  if(side==='current') h+='<button class="miniBtn ghost" data-act="restNext">Rest → Folgemonat</button>';
+  if(side==='current') h+='<span><button class="miniBtn ghost" data-act="restNext">Rest → Folgemonat</button> '+
+    '<button class="miniBtn" data-act="monthRoll">Monatswechsel</button></span>';
   h+='</div><table class="ledger"><tbody>';
   h+='<tr><td>Startkapital Zahlungskonto</td><td>'+inp('calc.'+side+'.start',s.start)+'</td><td></td></tr>';
   (s.income||[]).forEach((i,ix)=>{
@@ -429,9 +505,9 @@ function renderKonten(){
     const plusSum=(a.months||[]).reduce((x,m)=>x+(m.plus||0),0);
     const minusSum=(a.months||[]).reduce((x,m)=>x+(m.minus||0),0);
     const hasProg=(a.months||[]).some(m=>m.prognose!=null);
-    h+='<div class="card"><div class="cardHeadRow"><h3><input class="titleInp" data-path="accounts.'+ai+'.name" data-kind="text" value="'+esc(a.name)+'"></h3>'+
+    h+='<div class="card"><div class="cardHeadRow"><h3><div class="labEdit" contenteditable="plaintext-only" data-path="accounts.'+ai+'.name" data-kind="text" style="font-family:\'Newsreader\',serif;font-size:1.08rem">'+esc(a.name)+'</div></h3>'+
       '<button class="miniBtn danger" data-act="delAcc" data-i="'+ai+'">Löschen</button></div>'+
-      '<table class="ledger"><thead><tr><th>Monat</th>'+(hasProg?'<th>Prognose</th>':'')+
+      '<div class="scrollX"><table class="ledger"><thead><tr><th>Monat</th>'+(hasProg?'<th>Prognose</th>':'')+
       '<th>＋</th><th>−</th><th>Saldo</th></tr></thead><tbody>';
     h+='<tr><td>Start</td>'+(hasProg?'<td></td>':'')+'<td></td><td></td><td>'+inp('accounts.'+ai+'.start',a.start)+'</td></tr>';
     MONTHS.forEach((M,mi)=>{
@@ -445,7 +521,7 @@ function renderKonten(){
     h+='<tr class="sumRow"><td>＋ Ende Jahr</td>'+(hasProg?'<td></td>':'')+
       '<td class="num pos">'+fmt(plusSum)+'</td><td class="num neg">'+fmt(minusSum)+'</td>'+
       '<td class="num"><span class="dblRule">'+fmt(saldi[11]||a.start)+'</span></td></tr>';
-    h+='</tbody></table></div>';
+    h+='</tbody></table></div></div>';
   });
   h+='<button class="miniBtn" data-act="addAcc" style="margin-bottom:16px">＋ Konto hinzufügen</button>';
   $('tabKonten').innerHTML=h;
@@ -476,7 +552,7 @@ function renderFix(){
   let run=fk.base||0, einSum=0, abgSum=0;
   h+='<div class="card"><h3>Fixkosten-Konto im Jahresverlauf</h3>'+
     '<div class="statLine"><span>Basis Anfang Jahr</span><b>'+inp('fixkosten.base',fk.base)+'</b></div>'+
-    '<table class="ledger"><thead><tr><th>Monat</th><th>Einzahlung</th><th>Abgänge</th><th>Saldo</th></tr></thead><tbody>';
+    '<div class="scrollX"><table class="ledger"><thead><tr><th>Monat</th><th>Einzahlung</th><th>Abgänge</th><th>Saldo</th></tr></thead><tbody>';
   (fk.monate||[]).forEach((m,mi)=>{
     const abg=abgOf(m); einSum+=m.ein||0; abgSum+=abg;
     run=Math.round((run+(m.ein||0)-abg)*100)/100;
@@ -485,7 +561,7 @@ function renderFix(){
       '<td class="num '+(run<0?'neg':'')+'">'+fmt(run)+'</td></tr>';});
   h+='<tr class="sumRow"><td>Total</td><td class="num pos">'+fmt(einSum)+'</td>'+
     '<td class="num neg">'+fmt(abgSum)+'</td><td class="num"><span class="dblRule">'+fmt(run)+'</span></td></tr>';
-  h+='</tbody></table>'+
+  h+='</tbody></table></div>'+
     '<div class="statLine"><span>Überschuss budgetiert (Einzahlungen − Jahresausgaben)</span><b class="num '+(einSum-sum<0?'neg':'pos')+'">'+fmt(einSum-sum)+'</b></div>'+
     '<div class="statLine"><span>Überschuss effektiv (Endsaldo − Basis)</span><b class="num '+(run-(fk.base||0)<0?'neg':'pos')+'">'+fmt(run-(fk.base||0))+'</b></div></div>';
   $('tabFix').innerHTML=h;
@@ -544,8 +620,8 @@ function renderMehr(){
   let h='<p class="sectionCap">Investitionen '+year+'</p><div class="card">'+
     '<table class="ledger"><tbody>';
   (yy.investments||[]).forEach((i,ix)=>{
-    h+='<tr><td>'+inp('investments.'+ix+'.date',i.date,{lab:1,kind:'text'})+'</td>'+
-      '<td>'+inp('investments.'+ix+'.label',i.label,{lab:1,kind:'text'})+'</td>'+
+    h+='<tr><td style="text-align:left">'+inp('investments.'+ix+'.date',i.date,{lab:1,kind:'text'})+'</td>'+
+      '<td class="labCol">'+inp('investments.'+ix+'.label',i.label,{lab:1,kind:'text'})+'</td>'+
       '<td>'+inp('investments.'+ix+'.amount',i.amount)+'</td>'+
       '<td><button class="rowDel" data-act="del" data-p="investments" data-i="'+ix+'">✕</button></td></tr>';});
   h+='<tr class="sumRow"><td colspan="2">Total</td><td class="num">'+
@@ -553,7 +629,7 @@ function renderMehr(){
     '<button class="miniBtn ghost" data-act="addInv" style="margin-top:8px">＋ Investition</button></div>';
   h+='<p class="sectionCap">FIRE-Berechnung</p><div class="card"><table class="ledger"><tbody>';
   (fire.items||[]).forEach((i,ix)=>{
-    h+='<tr><td><input data-scope="settings" data-path="fire.items.'+ix+'.label" data-kind="text" class="lab" value="'+esc(i.label)+'"></td>'+
+    h+='<tr><td class="labCol"><div class="labEdit" contenteditable="plaintext-only" data-scope="settings" data-path="fire.items.'+ix+'.label">'+esc(i.label)+'</div></td>'+
       '<td><input data-scope="settings" data-path="fire.items.'+ix+'.value" data-kind="num" value="'+i.value+'"></td>'+
       '<td><button class="rowDel" data-act="delFire" data-i="'+ix+'">✕</button></td></tr>';});
   h+='<tr class="sumRow"><td>Kosten pro Jahr</td><td class="num">'+fmt(fSum)+'</td><td></td></tr></tbody></table>'+
@@ -565,7 +641,7 @@ function renderMehr(){
   h+='<p class="sectionCap">Meine Finanzregeln</p><div class="card">';
   (settings.rules||[]).forEach((r,ix)=>{
     h+='<div class="statLine"><span style="flex:1"><b>'+esc(r.nr||(ix+1)+'.')+'</b> '+
-      '<input data-scope="settings" data-path="rules.'+ix+'.text" data-kind="text" value="'+esc(r.text)+'" style="width:100%;border:none;background:transparent"></span>'+
+      '<div class="labEdit" contenteditable="plaintext-only" data-scope="settings" data-path="rules.'+ix+'.text">'+esc(r.text)+'</div></span>'+
       (r.value?'<b class="num" style="margin-left:8px">'+fmt(r.value)+'</b>':'')+
       '<button class="rowDel" data-act="delRule" data-i="'+ix+'">✕</button></div>';});
   h+='<button class="miniBtn ghost" data-act="addRule" style="margin-top:8px">＋ Regel</button></div>';
@@ -594,6 +670,12 @@ async function handleAction(d){
     case 'del': getPath(yy,d.p).splice(+d.i,1); break;
     case 'restNext': yy.calc.next.start=calcSide(yy.calc.current).rest;
       toast('Restguthaben als Startkapital des Folgemonats übernommen'); break;
+    case 'monthRoll': {
+      if(!confirm('Monatswechsel: Der Folgemonat wird zum aktuellen Monat. Fortfahren?')) return;
+      const rest=calcSide(yy.calc.current).rest;
+      yy.calc.current=JSON.parse(JSON.stringify(yy.calc.next));
+      yy.calc.current.start=rest;
+      toast('Folgemonat übernommen – Startkapital = bisheriges Restguthaben'); break; }
     case 'addAcc': yy.accounts.push({name:'Neues Konto',start:0,
       months:MONTHS.map(()=>({plus:0,minus:0})),extra:[]}); break;
     case 'delAcc': if(confirm('Konto wirklich löschen?')) yy.accounts.splice(+d.i,1); else return; break;
