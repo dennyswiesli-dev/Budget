@@ -137,6 +137,14 @@ h3 input.titleInp{font-family:'Newsreader',serif;font-weight:700;font-size:1.08r
 h3 input.titleInp:focus{outline:none;border-bottom:1px solid var(--ledger)}
 .cardHeadRow h3{flex:1;min-width:0}
 .card{padding:14px 12px}
+.dateCol{text-align:left;white-space:nowrap;width:1%}
+.dateCol .labEdit{min-width:92px;white-space:nowrap;overflow-wrap:normal}
+.cardNow{border-top:4px solid var(--plus)}
+.cardNext{border-top:4px solid var(--warn)}
+.tag{font-size:.64rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
+  border-radius:99px;padding:3px 9px;vertical-align:middle;margin-left:8px}
+.tagNow{background:rgba(46,125,91,.14);color:var(--plus)}
+.tagNext{background:rgba(201,138,45,.16);color:var(--warn)}
 .scrollX{overflow-x:auto;margin:0 -12px;padding:0 12px}
 .scrollX table.ledger td:first-child, .scrollX table.ledger th:first-child{
   position:sticky;left:0;background:var(--card);z-index:2}
@@ -434,6 +442,16 @@ function renderDash(){
     '<b class="num">'+fmt(nw)+' / '+fmt(noetig)+'</b></div>'+bar(nw/(noetig||1)*100)+
     '<div class="statLine" style="border:none"><span>Fortschritt</span><b class="num">'+
     (noetig?(nw/noetig*100).toFixed(1):'–')+' %</b></div></div>';
+  h+='<div class="card"><details><summary style="font-family:\'Newsreader\',serif;font-weight:700;font-size:1.05rem;cursor:pointer">Wie wird gerechnet?</summary>'+
+    '<div style="font-size:.88rem;line-height:1.6;margin-top:10px">'+
+    '<p><b>Restguthaben Monat</b> = Startkapital + Löhne/Gutschriften − Summe aller drei Ausgabenblöcke (Monat-Tab, aktueller Monat).</p>'+
+    '<p><b>Mögliches Sparen</b> = Restguthaben − '+fmt(settings.lohnkontoZiel||4000)+' Lohnkonto-Ziel (Regel 1).</p>'+
+    '<p><b>Nettowert</b> = Summe der Salden aller Konten im aktuellen Monat. Jeder Saldo = Start + kumulierte ＋ − kumulierte − ± Δ-Korrekturen (Kurseffekte).</p>'+
+    '<p><b>Zuwachs im Jahr</b> = Nettowert aktuell − Summe der Konten-Startsalden.</p>'+
+    '<p><b>Sparquote</b> = Gespartes ÷ Jahreslohn. Gespartes = Summe (＋ minus −) über alle Konten im Jahr; Jahreslohn editierbar oder per Button aus dem Lohn-Tab.</p>'+
+    '<p><b>Notgroschen</b> = Saldo des Sparkontos (erkannt am Namen, ohne «Steuern») gegen das Ziel '+fmt(settings.notgroschenZiel||30000)+'; Balken warnt ab 80 %.</p>'+
+    '<p><b>FIRE</b> = Nettowert ÷ benötigtes Vermögen; benötigt = FIRE-Jahreskosten ÷ Entnahmerate ('+(((settings.fire||{}).entnahmerate||0.026)*100).toFixed(1)+' %).</p>'+
+    '</div></details></div>';
   $('tabDash').innerHTML=h;
 }
 
@@ -448,7 +466,9 @@ function calcSide(s){
 }
 function sideCard(side,title){
   const s=Y().calc[side], c=calcSide(s);
-  let h='<div class="card"><div class="cardHeadRow"><h3>'+title+'</h3>';
+  const now=side==='current';
+  let h='<div class="card '+(now?'cardNow':'cardNext')+'"><div class="cardHeadRow"><h3>'+title+
+    '<span class="tag '+(now?'tagNow':'tagNext')+'">'+(now?'Aktuell':'Folgemonat')+'</span></h3>';
   if(side==='current') h+='<span><button class="miniBtn ghost" data-act="restNext">Rest → Folgemonat</button> '+
     '<button class="miniBtn" data-act="monthRoll">Monatswechsel</button></span>';
   h+='</div><table class="ledger"><tbody>';
@@ -581,7 +601,9 @@ function renderKK(){
   // Kalkulation nächster Monat
   [['current','Kalkulation aktueller Monat'],['next','Kalkulation nächster Monat']].forEach(([side,title])=>{
     const tot=(cc[side]||[]).reduce((a,i)=>a+(i.value||0),0);
-    h+='<div class="card"><div class="cardHeadRow"><h3>'+title+'</h3>'+
+    const now=side==='current';
+    h+='<div class="card '+(now?'cardNow':'cardNext')+'"><div class="cardHeadRow"><h3>'+title+
+      '<span class="tag '+(now?'tagNow':'tagNext')+'">'+(now?'Aktuell':'Folgemonat')+'</span></h3>'+
       '<button class="miniBtn ghost" data-act="add" data-p="ccCalc.'+side+'">＋ Posten</button></div>'+
       '<table class="ledger"><tbody>';
     (cc[side]||[]).forEach((i,ix)=>{
@@ -696,7 +718,7 @@ function renderMehr(){
   let h='<p class="sectionCap">Investitionen '+year+'</p><div class="card">'+
     '<table class="ledger"><tbody>';
   (yy.investments||[]).forEach((i,ix)=>{
-    h+='<tr><td style="text-align:left">'+inp('investments.'+ix+'.date',i.date,{lab:1,kind:'text'})+'</td>'+
+    h+='<tr><td class="dateCol">'+inp('investments.'+ix+'.date',i.date,{lab:1,kind:'text'})+'</td>'+
       '<td class="labCol">'+inp('investments.'+ix+'.label',i.label,{lab:1,kind:'text'})+'</td>'+
       '<td>'+inp('investments.'+ix+'.amount',i.amount)+'</td>'+
       '<td><button class="rowDel" data-act="del" data-p="investments" data-i="'+ix+'">✕</button></td></tr>';});
