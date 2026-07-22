@@ -673,14 +673,17 @@ function renderKK(){
 
 /* ================= NETTOLOHN ================= */
 const r05=x=>Math.round(x*20)/20;   // Schweizer Rappenrundung auf 5 Rp.
+const rd2=x=>Math.floor(x*100)/100; // Abrunden auf Rappen (ROUNDDOWN,2)
 const defaultNetto=()=>({brutto12:0,brutto13:0,items:[
   {label:'AHV-Beitrag',rate:0.053},{label:'ALV-Beitrag',rate:0.011},
   {label:'UVG-Beitrag NBU',rate:0.0089},{label:'PK-BVG-Beitrag',fix:0},
   {label:'KTG-Beitrag',rate:0.01433}],
   bvg:{hoechstlohn:90720,koordinationsabzug:26460,jahreslohn:0,sparsatz:0.07,zusatzsatz:0.0222658}});
 function nettoCalc(n){
+  // wie Excel: 12-Monatslöhne zuerst auf Rappen abrunden, dann auf 5 Rp. runden;
+  // 13. direkt auf 5 Rp. runden (ohne Abrunden)
   const rows=(n.items||[]).map(it=>({
-    a12:it.rate?r05((n.brutto12||0)*it.rate):(it.fix||0),
+    a12:it.rate?r05(rd2((n.brutto12||0)*it.rate)):(it.fix||0),
     a13:it.rate?r05((n.brutto13||0)*it.rate):0}));
   const s12=rows.reduce((a,x)=>a+x.a12,0), s13=rows.reduce((a,x)=>a+x.a13,0);
   const n12=(n.brutto12||0)-s12, n13=(n.brutto13||0)-s13;
@@ -689,7 +692,7 @@ function nettoCalc(n){
 function bvgCalc(b){
   const vers=Math.max(0,Math.min(b.jahreslohn||0,b.hoechstlohn||0)-(b.koordinationsabzug||0));
   const spar=vers*(b.sparsatz||0), zusatz=vers*(b.zusatzsatz||0);
-  const anJahr=(spar+zusatz)/2;
+  const anJahr=r05((spar+zusatz)/2);
   return {vers,spar,zusatz,anJahr,anMonat:r05(anJahr/12)};
 }
 function nettoSection(){
