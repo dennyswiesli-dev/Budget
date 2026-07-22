@@ -104,6 +104,11 @@ table.ledger tbody tr:hover{background:var(--bg)}
 table.ledger td:first-child{white-space:normal;overflow-wrap:anywhere;text-align:left}
 table.ledger td input{width:82px;max-width:100%;padding:6px 7px;border:1px solid transparent;border-radius:8px;
   background:transparent;text-align:right;font-family:'JetBrains Mono',monospace;font-size:.87rem;transition:border-color .12s,background .12s}
+input[data-path]{padding:6px 9px;border:1px solid var(--rule-strong);border-radius:8px;
+  background:var(--bg);color:var(--ink);text-align:right;font-family:'JetBrains Mono',monospace;
+  font-size:.87rem;transition:border-color .12s,background .12s}
+input[data-path]:hover{border-color:var(--primary)}
+input[data-path]:focus{border-color:var(--primary);background:var(--card);outline:none;box-shadow:0 0 0 3px var(--primary-soft)}
 table.ledger td.labCol{width:99%;text-align:left;white-space:normal}
 .labEdit{min-width:0;width:100%;text-align:left;font-family:'Inter',sans-serif;
   white-space:normal;overflow-wrap:anywhere;padding:5px 7px;border-radius:8px;
@@ -761,9 +766,9 @@ function renderMehr(){
   h+='<tr class="sumRow"><td>Kosten pro Jahr</td><td class="num">'+fmt(fSum)+'</td><td></td></tr></tbody></table>'+
     '<button class="miniBtn ghost" data-act="addFire" style="margin:8px 0 4px">＋ Position</button>'+
     '<div class="statLine"><span>Kosten pro Monat</span><b class="num">'+fmt(fSum/12)+'</b></div>'+
-    '<div class="statLine"><span>Entnahmerate</span><b><input data-scope="settings" data-path="fire.entnahmerate" data-kind="num" value="'+(fire.entnahmerate||0.026)+'" style="width:70px;text-align:right;border:1px solid var(--rule-strong);border-radius:6px;padding:3px 6px"></b></div>'+
+    '<div class="statLine"><span>Entnahmerate</span><b><input data-scope="settings" data-path="fire.entnahmerate" data-kind="num" value="'+(fire.entnahmerate||0.026)+'" style="width:70px"></b></div>'+
     '<div class="statLine"><span>Benötigtes Vermögen</span><b class="num"><span class="dblRule">'+fmt(noetig)+'</span></b></div>'+
-    '<div class="statLine"><span>Ziel-Vermögen</span><b><input data-scope="settings" data-path="fire.vermoegen" data-kind="num" value="'+(fire.vermoegen||0)+'" style="width:110px;text-align:right;border:1px solid var(--rule-strong);border-radius:6px;padding:3px 6px"></b></div></div>';
+    '<div class="statLine"><span>Ziel-Vermögen</span><b><input data-scope="settings" data-path="fire.vermoegen" data-kind="num" value="'+(fire.vermoegen||0)+'" style="width:110px"></b></div></div>';
   h+='<p class="sectionCap">Meine Finanzregeln</p><div class="card">';
   (settings.rules||[]).forEach((r,ix)=>{
     h+='<div class="statLine"><span style="flex:1"><b>'+esc(r.nr||(ix+1)+'.')+'</b> '+
