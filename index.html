@@ -287,6 +287,7 @@ let chartNW=null, chartVergleich=null;
 const fmt=n=>(n==null||isNaN(n))?'–':Number(n).toLocaleString('de-CH',{minimumFractionDigits:2,maximumFractionDigits:2});
 const chf=n=>fmt(n)+' Fr.';
 const pAmt=s=>{const v=parseFloat(String(s).replace(/'/g,'').replace(/,/g,'.'));return isNaN(v)?0:Math.round(v*100)/100;};
+const pRate=s=>{const v=parseFloat(String(s).replace(/'/g,'').replace(/,/g,'.'));return isNaN(v)?0:Math.round(v*1e6)/1e6;};
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 function toast(m){const t=document.createElement('div');t.className='toast';t.textContent=m;
   document.body.appendChild(t);setTimeout(()=>t.remove(),2400);}
@@ -420,7 +421,7 @@ document.addEventListener('focusout',e=>{
 document.addEventListener('change',e=>{
   const el=e.target; if(!el.dataset||!el.dataset.path||el.classList.contains('labEdit')) return;
   const kind=el.dataset.kind;
-  const val=kind==='num'?pAmt(el.value):el.value;
+  const val=kind==='num'?pAmt(el.value):kind==='rate'?pRate(el.value):el.value;
   const scope=el.dataset.scope||'year';
   setPath(scope==='settings'?settings:Y(),el.dataset.path,val);
   save(scope==='settings'?'settings':year);
@@ -672,14 +673,17 @@ function renderKK(){
 
 /* ================= NETTOLOHN ================= */
 const r05=x=>Math.round(x*20)/20;   // Schweizer Rappenrundung auf 5 Rp.
+const rd2=x=>Math.floor(x*100)/100; // Abrunden auf Rappen (ROUNDDOWN,2)
 const defaultNetto=()=>({brutto12:0,brutto13:0,items:[
   {label:'AHV-Beitrag',rate:0.053},{label:'ALV-Beitrag',rate:0.011},
   {label:'UVG-Beitrag NBU',rate:0.0089},{label:'PK-BVG-Beitrag',fix:0},
   {label:'KTG-Beitrag',rate:0.01433}],
   bvg:{hoechstlohn:90720,koordinationsabzug:26460,jahreslohn:0,sparsatz:0.07,zusatzsatz:0.0222658}});
 function nettoCalc(n){
+  // wie Excel: 12-Monatslöhne zuerst auf Rappen abrunden, dann auf 5 Rp. runden;
+  // 13. direkt auf 5 Rp. runden (ohne Abrunden)
   const rows=(n.items||[]).map(it=>({
-    a12:it.rate?r05((n.brutto12||0)*it.rate):(it.fix||0),
+    a12:it.rate?r05(rd2((n.brutto12||0)*it.rate)):(it.fix||0),
     a13:it.rate?r05((n.brutto13||0)*it.rate):0}));
   const s12=rows.reduce((a,x)=>a+x.a12,0), s13=rows.reduce((a,x)=>a+x.a13,0);
   const n12=(n.brutto12||0)-s12, n13=(n.brutto13||0)-s13;
@@ -688,7 +692,7 @@ function nettoCalc(n){
 function bvgCalc(b){
   const vers=Math.max(0,Math.min(b.jahreslohn||0,b.hoechstlohn||0)-(b.koordinationsabzug||0));
   const spar=vers*(b.sparsatz||0), zusatz=vers*(b.zusatzsatz||0);
-  const anJahr=(spar+zusatz)/2;
+  const anJahr=r05((spar+zusatz)/2);
   return {vers,spar,zusatz,anJahr,anMonat:r05(anJahr/12)};
 }
 function nettoSection(){
@@ -702,7 +706,7 @@ function nettoSection(){
     '<td>'+inp('netto.brutto12',n.brutto12)+'</td><td>'+inp('netto.brutto13',n.brutto13)+'</td><td></td></tr>';
   (n.items||[]).forEach((it,ix)=>{
     h+='<tr><td class="labCol">'+inp('netto.items.'+ix+'.label',it.label,{lab:1,kind:'text'})+'</td>'+
-      '<td>'+(it.rate!=null&&!it.fix?inp('netto.items.'+ix+'.rate',it.rate):
+      '<td>'+(it.rate!=null&&!it.fix?inp('netto.items.'+ix+'.rate',it.rate,{kind:'rate'}):
         inp('netto.items.'+ix+'.fix',it.fix||0))+'</td>'+
       '<td class="num neg">−'+fmt(c.rows[ix].a12)+'</td>'+
       '<td class="num neg">'+(c.rows[ix].a13?'−'+fmt(c.rows[ix].a13):'–')+'</td>'+
@@ -725,8 +729,8 @@ function nettoSection(){
     '<div class="statLine"><span>Koordinationsabzug</span><b>'+inp('netto.bvg.koordinationsabzug',b.koordinationsabzug)+'</b></div>'+
     '<div class="statLine"><span>Jahreslohn (brutto)</span><b>'+inp('netto.bvg.jahreslohn',b.jahreslohn)+'</b></div>'+
     '<div class="statLine"><span>Versicherter Lohn</span><b class="num">'+fmt(bc.vers)+'</b></div>'+
-    '<div class="statLine"><span>Sparbeitragssatz</span><b>'+inp('netto.bvg.sparsatz',b.sparsatz)+'</b></div>'+
-    '<div class="statLine"><span>Zusatzkosten-Satz</span><b>'+inp('netto.bvg.zusatzsatz',b.zusatzsatz)+'</b></div>'+
+    '<div class="statLine"><span>Sparbeitragssatz</span><b>'+inp('netto.bvg.sparsatz',b.sparsatz,{kind:'rate'})+'</b></div>'+
+    '<div class="statLine"><span>Zusatzkosten-Satz</span><b>'+inp('netto.bvg.zusatzsatz',b.zusatzsatz,{kind:'rate'})+'</b></div>'+
     '<div class="statLine"><span>Sparbeitrag / Jahr</span><b class="num">'+fmt(bc.spar)+'</b></div>'+
     '<div class="statLine"><span>Zusatzkosten / Jahr</span><b class="num">'+fmt(bc.zusatz)+'</b></div>'+
     '<div class="statLine"><span>Arbeitnehmerabzug / Jahr (½)</span><b class="num">'+fmt(bc.anJahr)+'</b></div>'+
@@ -766,7 +770,7 @@ function renderMehr(){
   h+='<tr class="sumRow"><td>Kosten pro Jahr</td><td class="num">'+fmt(fSum)+'</td><td></td></tr></tbody></table>'+
     '<button class="miniBtn ghost" data-act="addFire" style="margin:8px 0 4px">＋ Position</button>'+
     '<div class="statLine"><span>Kosten pro Monat</span><b class="num">'+fmt(fSum/12)+'</b></div>'+
-    '<div class="statLine"><span>Entnahmerate</span><b><input data-scope="settings" data-path="fire.entnahmerate" data-kind="num" value="'+(fire.entnahmerate||0.026)+'" style="width:70px"></b></div>'+
+    '<div class="statLine"><span>Entnahmerate</span><b><input data-scope="settings" data-path="fire.entnahmerate" data-kind="rate" value="'+(fire.entnahmerate||0.026)+'" style="width:70px"></b></div>'+
     '<div class="statLine"><span>Benötigtes Vermögen</span><b class="num"><span class="dblRule">'+fmt(noetig)+'</span></b></div>'+
     '<div class="statLine"><span>Ziel-Vermögen</span><b><input data-scope="settings" data-path="fire.vermoegen" data-kind="num" value="'+(fire.vermoegen||0)+'" style="width:110px"></b></div></div>';
   h+='<p class="sectionCap">Meine Finanzregeln</p><div class="card">';
