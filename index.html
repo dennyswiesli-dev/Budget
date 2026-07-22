@@ -26,6 +26,7 @@
   --warn:#F59E0B; --warn-soft:#FEF3E2; --radius:20px; --radius-sm:12px;
   --shadow:0 1px 2px rgba(26,27,46,.04), 0 8px 24px -12px rgba(26,27,46,.12);
   --shadow-sm:0 1px 2px rgba(26,27,46,.05);
+  --on-soft:var(--primary-ink); --toast-bg:#20223D;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--ink);
@@ -90,7 +91,7 @@ main{max-width:760px;margin:0 auto;padding:16px 12px 8px}
   font-size:.82rem;font-weight:600;white-space:nowrap;transition:transform .12s,box-shadow .12s;box-shadow:0 2px 8px -2px rgba(91,95,239,.5)}
 .miniBtn:hover{transform:translateY(-1px)}
 .miniBtn:active{transform:translateY(0)}
-.miniBtn.ghost{background:var(--primary-soft);color:var(--primary-ink);box-shadow:none}
+.miniBtn.ghost{background:var(--primary-soft);color:var(--on-soft);box-shadow:none}
 .miniBtn.danger{background:var(--minus-soft);color:var(--minus);box-shadow:none}
 .hint{font-size:.82rem;color:var(--muted)}
 
@@ -102,7 +103,7 @@ table.ledger th:first-child, table.ledger td:first-child{text-align:left}
 table.ledger td{padding:7px 6px;border-bottom:1px solid var(--rule);text-align:right;white-space:nowrap}
 table.ledger tbody tr:hover{background:var(--bg)}
 table.ledger td:first-child{white-space:normal;overflow-wrap:anywhere;text-align:left}
-table.ledger td input{width:82px;max-width:100%;padding:6px 7px;border:1px solid transparent;border-radius:8px;
+table.ledger td input{width:94px;max-width:100%;padding:6px 7px;border:1px solid transparent;border-radius:8px;
   background:transparent;text-align:right;font-family:'JetBrains Mono',monospace;font-size:.87rem;transition:border-color .12s,background .12s}
 input[data-path]{padding:6px 9px;border:1px solid var(--rule-strong);border-radius:8px;
   background:var(--bg);color:var(--ink);text-align:right;font-family:'JetBrains Mono',monospace;
@@ -125,8 +126,11 @@ table.ledger tr.sumRow td{border-top:2px solid var(--rule-strong);border-bottom:
 .kb .val{font-size:1.05rem;font-weight:700;padding-top:3px;font-family:'Sora',sans-serif}
 .rowDel{color:var(--muted);font-size:.95rem;padding:3px 7px;border-radius:8px}
 .rowDel:hover{color:var(--minus);background:var(--minus-soft)}
+.reorderGrp{display:inline-flex;gap:1px;white-space:nowrap}
+.reorderGrp .rowDel[disabled]{opacity:.25;pointer-events:none}
+.reorderGrp .rowDel:not(:last-child):hover{color:var(--primary);background:var(--primary-soft)}
 .grpCap{padding:14px 4px 6px;border-bottom:1px solid var(--rule-strong)}
-.grpCap .labEdit{font-size:.7rem;text-transform:uppercase;letter-spacing:.07em;color:var(--primary-ink);
+.grpCap .labEdit{font-size:.7rem;text-transform:uppercase;letter-spacing:.07em;color:var(--on-soft);
   font-weight:700;padding:2px 4px;min-width:0}
 .grpCap .labEdit:focus{color:var(--ink)}
 .sectionCap{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);
@@ -146,12 +150,12 @@ nav.tabs button.on{color:var(--primary)}
 nav.tabs .ico{font-size:1.2rem;line-height:1;transition:transform .15s}
 nav.tabs button.on .ico{transform:translateY(-2px)}
 .toast{position:fixed;left:50%;transform:translateX(-50%);
-  bottom:calc(96px + env(safe-area-inset-bottom));background:var(--ink);color:#fff;
+  bottom:calc(96px + env(safe-area-inset-bottom));background:var(--toast-bg);color:#fff;
   padding:11px 20px;border-radius:99px;font-size:.86rem;z-index:60;box-shadow:0 8px 24px -8px rgba(0,0,0,.4)}
 .saveDot{width:8px;height:8px;border-radius:50%;background:#4ADE80;display:inline-block;
   margin-left:6px;opacity:0;transition:opacity .3s;box-shadow:0 0 0 3px rgba(74,222,128,.25)}
 .saveDot.on{opacity:1}
-.pill{font-size:.7rem;background:var(--primary-soft);border-radius:99px;padding:3px 10px;color:var(--primary-ink);font-weight:600}
+.pill{font-size:.7rem;background:var(--primary-soft);border-radius:99px;padding:3px 10px;color:var(--on-soft);font-weight:600}
 h3 input.titleInp{font-family:'Sora',sans-serif;font-weight:700;font-size:1.05rem;
   border:none;background:transparent;width:100%;padding:2px 0}
 h3 input.titleInp:focus{outline:none;border-bottom:2px solid var(--primary)}
@@ -180,7 +184,7 @@ details summary::-webkit-details-marker{display:none}
 @media(max-width:430px){
   table.ledger{font-size:.82rem}
   table.ledger td{padding:5px 3px}
-  table.ledger td input{width:70px;font-size:.82rem}
+  table.ledger td input{width:78px;font-size:.82rem}
   table.ledger th{font-size:.6rem;padding:5px 3px}
   .kb .val{font-size:.94rem}
   main{padding:12px 8px 8px}
@@ -191,6 +195,7 @@ details summary::-webkit-details-marker{display:none}
     --bg:#0F1020; --bg-2:#181A33; --card:#171933;
     --ink:#EDEEFB; --muted:#9295BD; --rule:#242645; --rule-strong:#33366099;
     --primary-soft:#26244F; --plus-soft:#0F2A1D; --minus-soft:#301521; --warn-soft:#2E2410;
+    --on-soft:#C7C6FF;
   }
   body{background-image:radial-gradient(circle at 100% 0%,rgba(91,95,239,.14),transparent 55%)}
   nav.tabs{background:rgba(23,25,51,.9)}
@@ -286,6 +291,7 @@ let chartNW=null, chartVergleich=null;
 
 const fmt=n=>(n==null||isNaN(n))?'–':Number(n).toLocaleString('de-CH',{minimumFractionDigits:2,maximumFractionDigits:2});
 const chf=n=>fmt(n)+' Fr.';
+const fmtInp=v=>(v===''||v==null||isNaN(v))?'':Number(v).toLocaleString('de-CH',{minimumFractionDigits:2,maximumFractionDigits:2});
 const pAmt=s=>{const v=parseFloat(String(s).replace(/'/g,'').replace(/,/g,'.'));return isNaN(v)?0:Math.round(v*100)/100;};
 const pRate=s=>{const v=parseFloat(String(s).replace(/'/g,'').replace(/,/g,'.'));return isNaN(v)?0:Math.round(v*1e6)/1e6;};
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
@@ -408,7 +414,9 @@ function setPath(root,path,val){const ks=path.split('.');const last=ks.pop();
 function inp(path,val,opts={}){
   if(opts.lab) return '<div class="labEdit" contenteditable="plaintext-only" '+
     'data-path="'+path+'" data-kind="text">'+esc(val)+'</div>';
-  return '<input data-path="'+path+'" data-kind="'+(opts.kind||'num')+'" value="'+(val??'')+'">';
+  const kind=opts.kind||'num';
+  const shown=kind==='num'?fmtInp(val):(val??'');
+  return '<input data-path="'+path+'" data-kind="'+kind+'" value="'+shown+'">';
 }
 document.addEventListener('focusout',e=>{
   const el=e.target;
@@ -421,7 +429,7 @@ document.addEventListener('focusout',e=>{
 document.addEventListener('change',e=>{
   const el=e.target; if(!el.dataset||!el.dataset.path||el.classList.contains('labEdit')) return;
   const kind=el.dataset.kind;
-  const val=kind==='num'?pAmt(el.value):kind==='rate'?pRate(el.value):el.value;
+  const val=kind==='num'?pAmt(el.value):kind==='rate'?pRate(el.value):kind==='bool'?el.checked:el.value;
   const scope=el.dataset.scope||'year';
   setPath(scope==='settings'?settings:Y(),el.dataset.path,val);
   save(scope==='settings'?'settings':year);
@@ -432,6 +440,12 @@ document.addEventListener('click',e=>{
   handleAction(a.dataset); 
 });
 /* ================= ÜBERSICHT ================= */
+function reorderBtns(path,ix,len){
+  return '<span class="reorderGrp">'+
+    '<button class="rowDel" data-act="moveUp" data-p="'+path+'" data-i="'+ix+'" '+(ix===0?'disabled':'')+'>↑</button>'+
+    '<button class="rowDel" data-act="moveDown" data-p="'+path+'" data-i="'+ix+'" '+(ix===len-1?'disabled':'')+'>↓</button>'+
+    '<button class="rowDel" data-act="del" data-p="'+path+'" data-i="'+ix+'">✕</button></span>';
+}
 function bar(pct,warnAt){
   const cls=pct>=100?'':(warnAt&&pct>=warnAt?'warn':'');
   return '<div class="bar '+cls+'"><i style="width:'+Math.min(100,Math.max(0,pct))+'%"></i></div>';
@@ -445,8 +459,11 @@ function renderDash(){
   const nw=accs.reduce((a,ac)=>a+accountSaldi(ac)[nowMi],0);
   const nwStart=accs.reduce((a,ac)=>a+(ac.start||0),0);
   const gespart=accs.reduce((a,ac)=>a+(ac.months||[]).reduce((x,m)=>x+(m.plus||0)-(m.minus||0),0),0);
+  const adjustSum=accs.reduce((a,ac)=>a+(ac.months||[]).reduce((x,m)=>x+(m.adjust||0),0),0);
   const lohnJahr=yy.lohnJahr||Math.round(c.inc*13);
-  const sparquote=lohnJahr?gespart/lohnJahr*100:0;
+  const bonus=yy.bonus||0, bonusIncl=!!yy.bonusIncl;
+  const lohnEffektiv=lohnJahr+(bonusIncl?bonus:0);
+  const sparquote=lohnEffektiv?gespart/lohnEffektiv*100:0;
   const fire=settings.fire||{};
   const fSum=(fire.items||[]).reduce((a,i)=>a+(i.value||0),0);
   const noetig=fire.entnahmerate?fSum/fire.entnahmerate:0;
@@ -464,9 +481,15 @@ function renderDash(){
       '<div class="val num '+(nw-nwStart<0?'neg':'pos')+'">'+fmt(nw-nwStart)+'</div></div>'+
     '</div>';
   h+='<div class="card" style="margin-top:12px"><h3>Sparquote '+year+'</h3>'+
-    '<div class="statLine"><span>Gespart (alle Konten, ＋ − −)</span><b class="num pos">'+fmt(gespart)+'</b></div>'+
+    '<div class="statLine"><span>Gespart (alle Konten, ＋ − −, ohne Kurskorrekturen)</span><b class="num pos">'+fmt(gespart)+'</b></div>'+
+    '<div class="statLine"><span>Kurskorrekturen Δ (nicht Teil der Sparquote)</span><b class="num">'+fmt(adjustSum)+'</b></div>'+
+    '<div class="statLine"><span>Zuwachs Konten (Gespart + Δ, wie im Konten-Tab)</span><b class="num">'+fmt(gespart+adjustSum)+'</b></div>'+
     '<div class="statLine"><span>Jahreslohn (editierbar)</span><b>'+inp('lohnJahr',lohnJahr)+'</b></div>'+
-    '<div class="statLine"><span>Sparquote</span><b class="num"><span class="dblRule">'+sparquote.toFixed(1)+' %</span></b></div>'+
+    '<div class="statLine"><span>Bonus (optional, nicht garantiert)</span><b>'+inp('bonus',bonus)+'</b></div>'+
+    '<div class="statLine"><span>Bonus zur Sparquote hinzurechnen</span>'+
+    '<label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer">'+
+    '<input type="checkbox" data-path="bonusIncl" data-kind="bool" style="width:18px;height:18px;accent-color:var(--primary)"'+(bonusIncl?' checked':'')+'></label></div>'+
+    '<div class="statLine"><span>Sparquote'+(bonusIncl?' (inkl. Bonus)':'')+'</span><b class="num"><span class="dblRule">'+sparquote.toFixed(1)+' %</span></b></div>'+
     bar(sparquote*2.5)+'<p class="hint" style="margin-top:5px">Balken voll bei 40 % Sparquote</p></div>';
   h+='<div class="card"><h3>Notgroschen (Regel 2)</h3>'+
     '<div class="statLine"><span>'+esc(notAcc?notAcc.name:'Sparkonto')+'</span>'+
@@ -510,7 +533,7 @@ function sideCard(side,title){
   (s.income||[]).forEach((i,ix)=>{
     h+='<tr><td class="labCol">'+inp('calc.'+side+'.income.'+ix+'.label',i.label,{lab:1,kind:'text'})+'</td>'+
        '<td>'+inp('calc.'+side+'.income.'+ix+'.value',i.value)+'</td>'+
-       '<td><button class="rowDel" data-act="del" data-p="calc.'+side+'.income" data-i="'+ix+'">✕</button></td></tr>';
+       '<td>'+reorderBtns('calc.'+side+'.income',ix,s.income.length)+'</td></tr>';
   });
   h+='<tr><td colspan="3"><button class="miniBtn ghost" data-act="add" data-p="calc.'+side+'.income">＋ Lohn/Gutschrift</button></td></tr>';
   h+='<tr class="sumRow"><td>Total Kapital vorhanden</td><td class="num">'+fmt(c.total)+'</td><td></td></tr>';
@@ -519,7 +542,7 @@ function sideCard(side,title){
     (g.items||[]).forEach((i,ix)=>{
       h+='<tr><td class="labCol">'+inp('calc.'+side+'.groups.'+gi+'.items.'+ix+'.label',i.label,{lab:1,kind:'text'})+'</td>'+
          '<td>'+inp('calc.'+side+'.groups.'+gi+'.items.'+ix+'.value',i.value)+'</td>'+
-         '<td><button class="rowDel" data-act="del" data-p="calc.'+side+'.groups.'+gi+'.items" data-i="'+ix+'">✕</button></td></tr>';
+         '<td>'+reorderBtns('calc.'+side+'.groups.'+gi+'.items',ix,g.items.length)+'</td></tr>';
     });
     h+='<tr><td colspan="3" style="border:none"><button class="miniBtn ghost" data-act="add" data-p="calc.'+side+'.groups.'+gi+'.items">＋ Position</button></td></tr>';
   });
@@ -555,16 +578,23 @@ function renderKonten(){
   let h='<div class="card"><h3>Total Nettowert</h3>'+
     '<div class="kb" style="margin:2px 0 10px"><div><div class="cap">Aktuell (Dez)</div>'+
     '<div class="val num"><span class="dblRule">'+fmt(nw[11]||0)+'</span></div></div>'+
-    '<div><div class="cap">Zuwachs im Jahr</div><div class="val num pos">'+fmt((nw[11]||0)-accs.reduce((a,ac)=>a+(ac.start||0),0))+'</div></div>'+
+    '<div><div class="cap">Zuwachs im Jahr</div><div class="val num '+((nw[11]||0)-accs.reduce((a,ac)=>a+(ac.start||0),0)<0?'neg':'pos')+'">'+fmt((nw[11]||0)-accs.reduce((a,ac)=>a+(ac.start||0),0))+'</div></div>'+
     '<div><div class="cap">Konten</div><div class="val num">'+accs.length+'</div></div></div>'+
     '<div class="chartBox"><canvas id="cNW"></canvas></div></div>';
+  const notAcc=accs.find(a=>/sparkonto/i.test(a.name)&&!/steuer/i.test(a.name));
+  const notZiel=settings.notgroschenZiel||30000;
   accs.forEach((a,ai)=>{
     const saldi=accountSaldi(a);
     const plusSum=(a.months||[]).reduce((x,m)=>x+(m.plus||0),0);
     const minusSum=(a.months||[]).reduce((x,m)=>x+(m.minus||0),0);
+    const netto=plusSum-minusSum;
     const hasProg=(a.months||[]).some(m=>m.prognose!=null);
     h+='<div class="card"><div class="cardHeadRow"><h3><div class="labEdit" contenteditable="plaintext-only" data-path="accounts.'+ai+'.name" data-kind="text" style="font-family:\'Newsreader\',serif;font-size:1.08rem">'+esc(a.name)+'</div></h3>'+
       '<button class="miniBtn danger" data-act="delAcc" data-i="'+ai+'">Löschen</button></div>'+
+      '<div class="statLine"><span>Netto gespart im Jahr (＋ − −)</span><b class="num '+(netto<0?'neg':'pos')+'">'+fmt(netto)+'</b></div>'+
+      (a===notAcc?('<div class="statLine"><span>Überschuss Notgroschen (Saldo Ende Jahr − Ziel '+fmt(notZiel)+')</span>'+
+        '<b class="num '+((saldi[11]??a.start)-notZiel<0?'neg':'pos')+'">'+fmt((saldi[11]??a.start)-notZiel)+'</b></div>'+
+        '<p class="hint" style="margin:2px 0 8px">Für Budget Ferien/Anschaffungen oder Investitionen verfügbar, sobald positiv.</p>'):'')+
       '<div class="scrollX"><table class="ledger"><thead><tr><th>Monat</th>'+(hasProg?'<th>Prognose</th>':'')+
       '<th>＋</th><th>−</th><th>Saldo</th></tr></thead><tbody>';
     h+='<tr><td>Start</td>'+(hasProg?'<td></td>':'')+'<td></td><td></td><td>'+inp('accounts.'+ai+'.start',a.start)+'</td></tr>';
@@ -574,7 +604,9 @@ function renderKonten(){
         (hasProg?'<td>'+inp('accounts.'+ai+'.months.'+mi+'.prognose',m.prognose??'')+'</td>':'')+
         '<td>'+inp('accounts.'+ai+'.months.'+mi+'.plus',m.plus||'')+'</td>'+
         '<td>'+inp('accounts.'+ai+'.months.'+mi+'.minus',m.minus||'')+'</td>'+
-        '<td class="num">'+fmt(saldi[mi])+(m.adjust?' <span class="pill" title="Korrektur/Kurseffekt">Δ '+fmt(m.adjust)+'</span>':'')+'</td></tr>';
+        '<td class="num">'+fmt(saldi[mi])+(m.adjust?' <span class="pill" title="Korrektur/Kurseffekt">Δ '+fmt(m.adjust)+'</span>':'')+
+        (mi===11&&Y().netto?.lohn13Applied&&Y().netto.lohn13Konto===a.name?' <span class="pill" title="13. Monatslohn verbucht">13. Lohn '+fmt(Y().netto.lohn13Applied)+'</span>':'')+
+        '</td></tr>';
     });
     h+='<tr class="sumRow"><td>＋ Ende Jahr</td>'+(hasProg?'<td></td>':'')+
       '<td class="num pos">'+fmt(plusSum)+'</td><td class="num neg">'+fmt(minusSum)+'</td>'+
@@ -601,7 +633,7 @@ function renderFix(){
   (fk.items||[]).forEach((i,ix)=>{
     h+='<tr><td class="labCol">'+inp('fixkosten.items.'+ix+'.label',i.label,{lab:1,kind:'text'})+'</td>'+
       '<td>'+inp('fixkosten.items.'+ix+'.value',i.value)+'</td>'+
-      '<td><button class="rowDel" data-act="del" data-p="fixkosten.items" data-i="'+ix+'">✕</button></td></tr>';});
+      '<td>'+reorderBtns('fixkosten.items',ix,fk.items.length)+'</td></tr>';});
   h+='<tr class="sumRow"><td>Total pro Jahr</td><td class="num"><span class="dblRule">'+fmt(sum)+'</span></td><td></td></tr>';
   h+='</tbody></table>'+
     '<div class="statLine"><span>Empfohlener Übertrag/Monat (Total ÷ 12)</span><b class="num">'+fmt(sum/12)+'</b></div>'+
@@ -722,6 +754,9 @@ function nettoSection(){
     '<button class="miniBtn" data-act="lohnApply">Übernehmen</button></div>'+
     '<div class="statLine"><span>Netto (12 ML) als «neuer Lohn» in die Monatskalkulation</span>'+
     '<button class="miniBtn ghost" data-act="nettoZuLohn">Übernehmen</button></div>'+
+    '<div class="statLine"><span>13. Monatslohn ('+fmt(c.n13)+') ins Sparkonto Dezember buchen'+
+    (n.lohn13Applied?'<br><span class="hint">Zuletzt gebucht: '+fmt(n.lohn13Applied)+' in „'+esc(n.lohn13Konto||'')+'“</span>':'')+'</span>'+
+    '<button class="miniBtn ghost" data-act="lohn13ToKonto">Übernehmen</button></div>'+
     '<p class="hint" style="margin-top:6px">Prozent-Abzüge als Dezimalsatz (z. B. 0.053 = 5.3 %), '+
     'gerundet auf 5 Rappen. Fixbeträge (PK-BVG) gelten nur für die 12 Monatslöhne.</p></div>';
   h+='<div class="card"><h3>BVG-Pensionskasse</h3>'+
@@ -765,14 +800,14 @@ function renderMehr(){
   h+='<p class="sectionCap">FIRE-Berechnung</p><div class="card"><table class="ledger"><tbody>';
   (fire.items||[]).forEach((i,ix)=>{
     h+='<tr><td class="labCol"><div class="labEdit" contenteditable="plaintext-only" data-scope="settings" data-path="fire.items.'+ix+'.label">'+esc(i.label)+'</div></td>'+
-      '<td><input data-scope="settings" data-path="fire.items.'+ix+'.value" data-kind="num" value="'+i.value+'"></td>'+
+      '<td><input data-scope="settings" data-path="fire.items.'+ix+'.value" data-kind="num" value="'+fmtInp(i.value)+'"></td>'+
       '<td><button class="rowDel" data-act="delFire" data-i="'+ix+'">✕</button></td></tr>';});
   h+='<tr class="sumRow"><td>Kosten pro Jahr</td><td class="num">'+fmt(fSum)+'</td><td></td></tr></tbody></table>'+
     '<button class="miniBtn ghost" data-act="addFire" style="margin:8px 0 4px">＋ Position</button>'+
     '<div class="statLine"><span>Kosten pro Monat</span><b class="num">'+fmt(fSum/12)+'</b></div>'+
     '<div class="statLine"><span>Entnahmerate</span><b><input data-scope="settings" data-path="fire.entnahmerate" data-kind="rate" value="'+(fire.entnahmerate||0.026)+'" style="width:70px"></b></div>'+
     '<div class="statLine"><span>Benötigtes Vermögen</span><b class="num"><span class="dblRule">'+fmt(noetig)+'</span></b></div>'+
-    '<div class="statLine"><span>Ziel-Vermögen</span><b><input data-scope="settings" data-path="fire.vermoegen" data-kind="num" value="'+(fire.vermoegen||0)+'" style="width:110px"></b></div></div>';
+    '<div class="statLine"><span>Ziel-Vermögen</span><b><input data-scope="settings" data-path="fire.vermoegen" data-kind="num" value="'+fmtInp(fire.vermoegen||0)+'" style="width:110px"></b></div></div>';
   h+='<p class="sectionCap">Meine Finanzregeln</p><div class="card">';
   (settings.rules||[]).forEach((r,ix)=>{
     h+='<div class="statLine"><span style="flex:1"><b>'+esc(r.nr||(ix+1)+'.')+'</b> '+
@@ -803,6 +838,10 @@ async function handleAction(d){
   switch(d.act){
     case 'add': getPath(yy,d.p).push({label:'Neu',value:0}); break;
     case 'del': getPath(yy,d.p).splice(+d.i,1); break;
+    case 'moveUp': { const arr=getPath(yy,d.p); const i=+d.i;
+      if(i>0){ const t=arr[i-1]; arr[i-1]=arr[i]; arr[i]=t; } else return; break; }
+    case 'moveDown': { const arr=getPath(yy,d.p); const i=+d.i;
+      if(i<arr.length-1){ const t=arr[i+1]; arr[i+1]=arr[i]; arr[i]=t; } else return; break; }
     case 'restNext': yy.calc.next.start=calcSide(yy.calc.current).rest;
       toast('Restguthaben als Startkapital des Folgemonats übernommen'); break;
     case 'monthRoll': {
@@ -825,6 +864,16 @@ async function handleAction(d){
       toast('Nettolohn '+fmt(netto)+' als «neuer Lohn» übernommen'); break; }
     case 'lohnApply': yy.lohnJahr=Math.round(nettoCalc(yy.netto).jahr);
       toast('Netto-Jahreslohn für die Sparquote übernommen'); break;
+    case 'lohn13ToKonto': {
+      const notAcc=(yy.accounts||[]).find(a=>/sparkonto/i.test(a.name)&&!/steuer/i.test(a.name));
+      if(!notAcc){ toast('Kein Sparkonto gefunden (Kontoname muss „Sparkonto“ enthalten)'); return; }
+      const n13=nettoCalc(yy.netto).n13;
+      const prev=yy.netto.lohn13Applied||0;
+      notAcc.months=notAcc.months||MONTHS.map(()=>({plus:0,minus:0}));
+      const dec=notAcc.months[11]=notAcc.months[11]||{plus:0,minus:0};
+      dec.plus=Math.round(((dec.plus||0)-prev+n13)*100)/100;
+      yy.netto.lohn13Applied=n13; yy.netto.lohn13Konto=notAcc.name;
+      toast('13. Monatslohn '+fmt(n13)+' im Dezember von „'+notAcc.name+'“ verbucht'); break; }
     case 'bvgApply': {
       const pk=(yy.netto.items||[]).find(i=>/pk|bvg/i.test(i.label));
       const v=bvgCalc(yy.netto.bvg).anMonat;
