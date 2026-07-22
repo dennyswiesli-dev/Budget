@@ -299,6 +299,8 @@ const chf=n=>fmt(n)+' Fr.';
 const fmtInp=v=>(v===''||v==null||isNaN(v))?'':Number(v).toLocaleString('de-CH',{minimumFractionDigits:2,maximumFractionDigits:2});
 const pAmt=s=>{const v=parseFloat(String(s).replace(/'/g,'').replace(/,/g,'.'));return isNaN(v)?0:Math.round(v*100)/100;};
 const pRate=s=>{const v=parseFloat(String(s).replace(/'/g,'').replace(/,/g,'.'));return isNaN(v)?0:Math.round(v*1e6)/1e6;};
+const pPct=s=>{const v=parseFloat(String(s).replace(/'/g,'').replace(/,/g,'.'));return isNaN(v)?0:Math.round(v/100*1e8)/1e8;};
+const fmtPct=v=>(v==null||v===''||isNaN(v))?'':(Number(v)*100).toLocaleString('de-CH',{maximumFractionDigits:6});
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 function toast(m){const t=document.createElement('div');t.className='toast';t.textContent=m;
   document.body.appendChild(t);setTimeout(()=>t.remove(),2400);}
@@ -420,7 +422,7 @@ function inp(path,val,opts={}){
   if(opts.lab) return '<div class="labEdit" contenteditable="plaintext-only" '+
     'data-path="'+path+'" data-kind="text">'+esc(val)+'</div>';
   const kind=opts.kind||'num';
-  const shown=kind==='num'?fmtInp(val):(val??'');
+  const shown=kind==='num'?fmtInp(val):kind==='pct'?fmtPct(val):(val??'');
   return '<input data-path="'+path+'" data-kind="'+kind+'" value="'+shown+'">';
 }
 document.addEventListener('focusout',e=>{
@@ -434,7 +436,7 @@ document.addEventListener('focusout',e=>{
 document.addEventListener('change',e=>{
   const el=e.target; if(!el.dataset||!el.dataset.path||el.classList.contains('labEdit')) return;
   const kind=el.dataset.kind;
-  const val=kind==='num'?pAmt(el.value):kind==='rate'?pRate(el.value):kind==='bool'?el.checked:el.value;
+  const val=kind==='num'?pAmt(el.value):kind==='rate'?pRate(el.value):kind==='pct'?pPct(el.value):kind==='bool'?el.checked:el.value;
   const scope=el.dataset.scope||'year';
   setPath(scope==='settings'?settings:Y(),el.dataset.path,val);
   save(scope==='settings'?'settings':year);
@@ -463,7 +465,7 @@ function renderDash(){
   const nowMi=(year===String(new Date().getFullYear()))?new Date().getMonth():11;
   const nw=accs.reduce((a,ac)=>a+acctSaldoAt(ac,nowMi),0);
   const nwStart=accs.reduce((a,ac)=>a+(ac.start||0),0);
-  const gespart=accs.reduce((a,ac)=>a+(ac.months||[]).reduce((x,m)=>x+(m.plus||0)-(m.minus||0),0)+lohn13For(ac),0);
+  const gespart=accs.reduce((a,ac)=>a+(ac.months||[]).reduce((x,m)=>x+((m.plus||0)||(m.prognose!=null?m.prognose:0))-(m.minus||0),0)+lohn13For(ac),0);
   const lohnJahr=yy.lohnJahr||Math.round(c.inc*13);
   const bonus=yy.bonus||0, bonusIncl=!!yy.bonusIncl;
   const lohnEffektiv=lohnJahr+(bonusIncl?bonus:0);
@@ -475,10 +477,11 @@ function renderDash(){
   const notSaldo=notAcc?acctSaldoAt(notAcc,nowMi):0;
   const notZiel=settings.notgroschenZiel||30000;
   const yearEndNW=accs.reduce((a,ac)=>a+acctSaldoAt(ac,11),0);
-  const gespartProjected=accs.reduce((a,ac)=>a+(ac.months||[]).reduce((x,m)=>x+((m.plus||0)||(m.prognose!=null?m.prognose:0))-(m.minus||0),0)+lohn13For(ac),0);
+  const projRendite=settings.projRendite||0;
   const projYears=20;
   const projLabels=Array.from({length:projYears+1},(_,i)=>String(+year+i));
-  const projData=Array.from({length:projYears+1},(_,i)=>yearEndNW+i*gespartProjected);
+  const projData=Array.from({length:projYears+1},(_,i)=>{
+    let v=yearEndNW; for(let k=0;k<i;k++) v=v*(1+projRendite)+gespart; return Math.round(v); });
   let h='<div class="dashGrid">'+
     '<div class="dashCell"><div class="cap">Restguthaben Monat</div>'+
       '<div class="val num"><span class="dblRule '+(c.rest<0?'neg':'')+'">'+fmt(c.rest)+'</span></div></div>'+
@@ -508,9 +511,11 @@ function renderDash(){
     (noetig?(nw/noetig*100).toFixed(1):'–')+' %</b></div></div>';
   h+='<div class="card"><h3>Vermögens-Hochrechnung (20 Jahre)</h3>'+
     '<div class="chartBox"><canvas id="cProjection"></canvas></div>'+
-    '<p class="hint" style="margin-top:8px">Lineare Hochrechnung ab Jahresendstand '+year+' ('+fmt(yearEndNW)+'), '+
-    'jährlich + '+fmt(gespartProjected)+' (so wie in '+year+' voraussichtlich gespart, inkl. Prognose &amp; 13. Lohn) – ohne Rendite/Verzinsung.</p></div>';
-  h+='<div class="card"><details><summary style="font-family:\'Newsreader\',serif;font-weight:700;font-size:1.05rem;cursor:pointer">Wie wird gerechnet?</summary>'+
+    '<div class="statLine"><span>Erwartete jährliche Rendite</span>'+
+    '<b><input data-scope="settings" data-path="projRendite" data-kind="pct" value="'+fmtPct(projRendite)+'" style="width:70px"></b></div>'+
+    '<p class="hint" style="margin-top:4px">Ab Jahresendstand '+year+' ('+fmt(yearEndNW)+'), jährlich + '+fmt(gespart)+
+    ' Sparen (so wie in '+year+' voraussichtlich, inkl. Prognose &amp; 13. Lohn)'+(projRendite?' und '+fmtPct(projRendite)+' % Rendite auf das bestehende Vermögen':'')+'.</p></div>';
+  h+='<div class="card"><details><summary style="font-family:\'Sora\',sans-serif;font-weight:700;font-size:1.05rem;cursor:pointer">Wie wird gerechnet?</summary>'+
     '<div style="font-size:.88rem;line-height:1.6;margin-top:10px">'+
     '<p><b>Restguthaben Monat</b> = Startkapital + Löhne/Gutschriften − Summe aller drei Ausgabenblöcke (Monat-Tab, aktueller Monat).</p>'+
     '<p><b>Mögliches Sparen</b> = Restguthaben − '+fmt(settings.lohnkontoZiel||4000)+' Lohnkonto-Ziel (Regel 1).</p>'+
@@ -624,7 +629,7 @@ function renderKonten(){
     const plusEffSum=(a.months||[]).reduce((x,m)=>x+((m.plus||0)||(m.prognose!=null?m.prognose:0)),0);
     const minusSum=(a.months||[]).reduce((x,m)=>x+(m.minus||0),0);
     const netto=plusEffSum-minusSum+l13;
-    h+='<div class="card"><div class="cardHeadRow"><h3><div class="labEdit" contenteditable="plaintext-only" data-path="accounts.'+ai+'.name" data-kind="text" style="font-family:\'Newsreader\',serif;font-size:1.08rem">'+esc(a.name)+'</div></h3>'+
+    h+='<div class="card"><div class="cardHeadRow"><h3><div class="labEdit" contenteditable="plaintext-only" data-path="accounts.'+ai+'.name" data-kind="text" style="font-family:\'Sora\',sans-serif;font-size:1.08rem">'+esc(a.name)+'</div></h3>'+
       '<button class="miniBtn danger" data-act="delAcc" data-i="'+ai+'">Löschen</button></div>'+
       '<div class="statLine"><span>Netto gespart im Jahr (inkl. Prognose &amp; 13. Lohn falls gebucht)</span><b class="num '+(netto<0?'neg':'pos')+'">'+fmt(netto)+'</b></div>'+
       '<div class="statLine"><span>Prognose für alle Monate setzen<br><span class="hint">zum Durchspielen möglicher Szenarien</span></span>'+
@@ -652,7 +657,9 @@ function renderKonten(){
       '<td class="num"><span class="dblRule">'+fmt(decFinal||a.start)+'</span></td></tr>';
     h+='</tbody></table></div></div>';
   });
-  h+='<button class="miniBtn" data-act="addAcc" style="margin-bottom:16px">＋ Konto hinzufügen</button>';
+  h+='<button class="miniBtn" data-act="addAcc">＋ Konto hinzufügen</button> '+
+    '<button class="miniBtn ghost" data-act="carryOverBalances" style="margin-bottom:16px">Endsaldi → '+(+year+1)+' übernehmen</button>'+
+    '<p class="hint" style="margin:-8px 0 16px">Überträgt die Dezember-Endsaldi als Startkapital ins Folgejahr (bleibt dort editierbar, z. B. für Zinsen).</p>';
   $('tabKonten').innerHTML=h;
   if(chartNW)chartNW.destroy();
   chartNW=new Chart($('cNW'),{type:'line',data:{labels:MONTHS.map(m=>m.slice(0,3)),
@@ -771,14 +778,15 @@ function nettoSection(){
   if(!yy.netto) yy.netto=defaultNetto();
   const n=yy.netto, c=nettoCalc(n), b=n.bvg||defaultNetto().bvg, bc=bvgCalc(b);
   let h='<p class="sectionCap">Nettolohnberechnung '+year+'</p><div class="card">'+
-    '<div class="scrollX"><table class="ledger"><thead><tr><th>Position</th><th>Satz</th>'+
+    '<div class="scrollX"><table class="ledger"><thead><tr><th>Position</th><th>Satz (%)</th>'+
     '<th>12 Monatslöhne</th><th>13.</th><th></th></tr></thead><tbody>';
   h+='<tr><td class="labCol"><b>Bruttolohn</b></td><td></td>'+
     '<td>'+inp('netto.brutto12',n.brutto12)+'</td><td>'+inp('netto.brutto13',n.brutto13)+'</td><td></td></tr>';
   (n.items||[]).forEach((it,ix)=>{
     h+='<tr><td class="labCol">'+inp('netto.items.'+ix+'.label',it.label,{lab:1,kind:'text'})+'</td>'+
-      '<td>'+(it.rate!=null&&!it.fix?inp('netto.items.'+ix+'.rate',it.rate,{kind:'rate'}):
-        inp('netto.items.'+ix+'.fix',it.fix||0))+'</td>'+
+      '<td>'+(it.rate!=null&&!it.fix?inp('netto.items.'+ix+'.rate',it.rate,{kind:'pct'}):
+        inp('netto.items.'+ix+'.fix',it.fix||0)+'<br><span class="hint" style="font-size:.68rem">≈ '+
+        (n.brutto12?(c.rows[ix].a12/n.brutto12*100).toFixed(2):'0.00')+' % vom Lohn</span>')+'</td>'+
       '<td class="num neg">−'+fmt(c.rows[ix].a12)+'</td>'+
       '<td class="num neg">'+(c.rows[ix].a13?'−'+fmt(c.rows[ix].a13):'–')+'</td>'+
       '<td><button class="rowDel" data-act="del" data-p="netto.items" data-i="'+ix+'">✕</button></td></tr>';});
@@ -796,15 +804,15 @@ function nettoSection(){
     '<div class="statLine"><span>13. Monatslohn ('+fmt(c.n13)+') ins Sparkonto Dezember buchen'+
     (n.lohn13Applied?'<br><span class="hint">Zuletzt gebucht: '+fmt(n.lohn13Applied)+' in „'+esc(n.lohn13Konto||'')+'“</span>':'')+'</span>'+
     '<button class="miniBtn ghost" data-act="lohn13ToKonto">Übernehmen</button></div>'+
-    '<p class="hint" style="margin-top:6px">Prozent-Abzüge als Dezimalsatz (z. B. 0.053 = 5.3 %), '+
+    '<p class="hint" style="margin-top:6px">Prozent-Abzüge direkt in % eintragen (z. B. 5.3), '+
     'gerundet auf 5 Rappen. Fixbeträge (PK-BVG) gelten nur für die 12 Monatslöhne.</p></div>';
   h+='<div class="card"><h3>BVG-Pensionskasse</h3>'+
     '<div class="statLine"><span>Höchstlohn</span><b>'+inp('netto.bvg.hoechstlohn',b.hoechstlohn)+'</b></div>'+
     '<div class="statLine"><span>Koordinationsabzug</span><b>'+inp('netto.bvg.koordinationsabzug',b.koordinationsabzug)+'</b></div>'+
     '<div class="statLine"><span>Jahreslohn (brutto)</span><b>'+inp('netto.bvg.jahreslohn',b.jahreslohn)+'</b></div>'+
     '<div class="statLine"><span>Versicherter Lohn</span><b class="num">'+fmt(bc.vers)+'</b></div>'+
-    '<div class="statLine"><span>Sparbeitragssatz</span><b>'+inp('netto.bvg.sparsatz',b.sparsatz,{kind:'rate'})+'</b></div>'+
-    '<div class="statLine"><span>Zusatzkosten-Satz</span><b>'+inp('netto.bvg.zusatzsatz',b.zusatzsatz,{kind:'rate'})+'</b></div>'+
+    '<div class="statLine"><span>Sparbeitragssatz (%)</span><b>'+inp('netto.bvg.sparsatz',b.sparsatz,{kind:'pct'})+'</b></div>'+
+    '<div class="statLine"><span>Zusatzkosten-Satz (%)</span><b>'+inp('netto.bvg.zusatzsatz',b.zusatzsatz,{kind:'pct'})+'</b></div>'+
     '<div class="statLine"><span>Sparbeitrag / Jahr</span><b class="num">'+fmt(bc.spar)+'</b></div>'+
     '<div class="statLine"><span>Zusatzkosten / Jahr</span><b class="num">'+fmt(bc.zusatz)+'</b></div>'+
     '<div class="statLine"><span>Arbeitnehmerabzug / Jahr (½)</span><b class="num">'+fmt(bc.anJahr)+'</b></div>'+
@@ -927,6 +935,19 @@ async function handleAction(d){
       if(pk){ pk.fix=v; delete pk.rate; }
       else yy.netto.items.push({label:'PK-BVG-Beitrag',fix:v});
       toast('PK-BVG-Abzug auf '+fmt(v)+' gesetzt'); break; }
+    case 'carryOverBalances': {
+      const nextYear=String(+year+1);
+      if(!years[nextYear]) years[nextYear]=emptyYear();
+      const ny=years[nextYear];
+      (yy.accounts||[]).forEach(a=>{
+        const newStart=acctSaldoAt(a,11);
+        let target=(ny.accounts=ny.accounts||[]).find(x=>x.name===a.name);
+        if(!target){ target={name:a.name,start:0,months:MONTHS.map(()=>({plus:0,minus:0}))}; ny.accounts.push(target); }
+        target.start=newStart;
+      });
+      save(nextYear);
+      toast('Endsaldi als Startkapital für '+nextYear+' übernommen (bleibt editierbar)');
+      renderTab(); return; }
     case 'addInv': (yy.investments=yy.investments||[]).push({date:new Date().toISOString().slice(0,10),label:'Neu',amount:0}); break;
     case 'addFire': settings.fire.items.push({label:'Neu',value:0}); save('settings'); renderTab(); return;
     case 'delFire': settings.fire.items.splice(+d.i,1); save('settings'); renderTab(); return;
