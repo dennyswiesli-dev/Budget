@@ -580,7 +580,9 @@ function renderKonten(){
     '<div class="val num"><span class="dblRule">'+fmt(nw[11]||0)+'</span></div></div>'+
     '<div><div class="cap">Zuwachs im Jahr</div><div class="val num '+((nw[11]||0)-accs.reduce((a,ac)=>a+(ac.start||0),0)<0?'neg':'pos')+'">'+fmt((nw[11]||0)-accs.reduce((a,ac)=>a+(ac.start||0),0))+'</div></div>'+
     '<div><div class="cap">Konten</div><div class="val num">'+accs.length+'</div></div></div>'+
-    '<div class="chartBox"><canvas id="cNW"></canvas></div></div>';
+    '<div class="chartBox"><canvas id="cNW"></canvas></div>'+
+    '<p class="hint" style="margin-top:8px">Δ Kurs: Wertänderung ohne Einzahlung/Abhebung (z. B. Kursschwankung bei Depots). '+
+    'Fliesst in den Saldo und in «Zuwachs im Jahr» ein, zählt aber nicht als «Gespart» in der Sparquote (Übersicht).</p></div>';
   const notAcc=accs.find(a=>/sparkonto/i.test(a.name)&&!/steuer/i.test(a.name));
   const notZiel=settings.notgroschenZiel||30000;
   accs.forEach((a,ai)=>{
@@ -596,20 +598,23 @@ function renderKonten(){
         '<b class="num '+((saldi[11]??a.start)-notZiel<0?'neg':'pos')+'">'+fmt((saldi[11]??a.start)-notZiel)+'</b></div>'+
         '<p class="hint" style="margin:2px 0 8px">Für Budget Ferien/Anschaffungen oder Investitionen verfügbar, sobald positiv.</p>'):'')+
       '<div class="scrollX"><table class="ledger"><thead><tr><th>Monat</th>'+(hasProg?'<th>Prognose</th>':'')+
-      '<th>＋</th><th>−</th><th>Saldo</th></tr></thead><tbody>';
-    h+='<tr><td>Start</td>'+(hasProg?'<td></td>':'')+'<td></td><td></td><td>'+inp('accounts.'+ai+'.start',a.start)+'</td></tr>';
+      '<th>＋</th><th>−</th><th>Δ Kurs</th><th>Saldo</th></tr></thead><tbody>';
+    h+='<tr><td>Start</td>'+(hasProg?'<td></td>':'')+'<td></td><td></td><td></td><td>'+inp('accounts.'+ai+'.start',a.start)+'</td></tr>';
+    const adjustSumAcc=(a.months||[]).reduce((x,m)=>x+(m.adjust||0),0);
     MONTHS.forEach((M,mi)=>{
       const m=a.months[mi]||{};
       h+='<tr><td>'+M.slice(0,3)+'</td>'+
         (hasProg?'<td>'+inp('accounts.'+ai+'.months.'+mi+'.prognose',m.prognose??'')+'</td>':'')+
         '<td>'+inp('accounts.'+ai+'.months.'+mi+'.plus',m.plus||'')+'</td>'+
         '<td>'+inp('accounts.'+ai+'.months.'+mi+'.minus',m.minus||'')+'</td>'+
-        '<td class="num">'+fmt(saldi[mi])+(m.adjust?' <span class="pill" title="Korrektur/Kurseffekt">Δ '+fmt(m.adjust)+'</span>':'')+
+        '<td>'+inp('accounts.'+ai+'.months.'+mi+'.adjust',m.adjust||'')+'</td>'+
+        '<td class="num">'+fmt(saldi[mi])+
         (mi===11&&Y().netto?.lohn13Applied&&Y().netto.lohn13Konto===a.name?' <span class="pill" title="13. Monatslohn verbucht">13. Lohn '+fmt(Y().netto.lohn13Applied)+'</span>':'')+
         '</td></tr>';
     });
     h+='<tr class="sumRow"><td>＋ Ende Jahr</td>'+(hasProg?'<td></td>':'')+
       '<td class="num pos">'+fmt(plusSum)+'</td><td class="num neg">'+fmt(minusSum)+'</td>'+
+      '<td class="num">'+fmt(adjustSumAcc)+'</td>'+
       '<td class="num"><span class="dblRule">'+fmt(saldi[11]||a.start)+'</span></td></tr>';
     h+='</tbody></table></div></div>';
   });
