@@ -110,6 +110,11 @@ input[data-path]{padding:6px 9px;border:1px solid var(--rule-strong);border-radi
   font-size:.87rem;transition:border-color .12s,background .12s}
 input[data-path]:hover{border-color:var(--primary)}
 input[data-path]:focus{border-color:var(--primary);background:var(--card);outline:none;box-shadow:0 0 0 3px var(--primary-soft)}
+.miniInp{padding:6px 9px;border:1px solid var(--rule-strong);border-radius:8px;width:90px;
+  background:var(--bg);color:var(--ink);text-align:right;font-family:'JetBrains Mono',monospace;
+  font-size:.87rem;transition:border-color .12s,background .12s}
+.miniInp:hover{border-color:var(--primary)}
+.miniInp:focus{border-color:var(--primary);background:var(--card);outline:none;box-shadow:0 0 0 3px var(--primary-soft)}
 table.ledger td.labCol{width:99%;text-align:left;white-space:normal}
 .labEdit{min-width:0;width:100%;text-align:left;font-family:'Inter',sans-serif;
   white-space:normal;overflow-wrap:anywhere;padding:5px 7px;border-radius:8px;
@@ -456,10 +461,9 @@ function renderDash(){
   const c=calcSide(yy.calc.current);
   const accs=yy.accounts||[];
   const nowMi=(year===String(new Date().getFullYear()))?new Date().getMonth():11;
-  const nw=accs.reduce((a,ac)=>a+accountSaldi(ac)[nowMi],0);
+  const nw=accs.reduce((a,ac)=>a+accountSaldi(ac,lohn13For(ac))[nowMi],0);
   const nwStart=accs.reduce((a,ac)=>a+(ac.start||0),0);
-  const gespart=accs.reduce((a,ac)=>a+(ac.months||[]).reduce((x,m)=>x+(m.plus||0)-(m.minus||0),0),0);
-  const adjustSum=accs.reduce((a,ac)=>a+(ac.months||[]).reduce((x,m)=>x+(m.adjust||0),0),0);
+  const gespart=accs.reduce((a,ac)=>a+(ac.months||[]).reduce((x,m)=>x+(m.plus||0)-(m.minus||0),0)+lohn13For(ac),0);
   const lohnJahr=yy.lohnJahr||Math.round(c.inc*13);
   const bonus=yy.bonus||0, bonusIncl=!!yy.bonusIncl;
   const lohnEffektiv=lohnJahr+(bonusIncl?bonus:0);
@@ -468,7 +472,7 @@ function renderDash(){
   const fSum=(fire.items||[]).reduce((a,i)=>a+(i.value||0),0);
   const noetig=fire.entnahmerate?fSum/fire.entnahmerate:0;
   const notAcc=accs.find(a=>/sparkonto/i.test(a.name)&&!/steuer/i.test(a.name));
-  const notSaldo=notAcc?accountSaldi(notAcc)[nowMi]:0;
+  const notSaldo=notAcc?accountSaldi(notAcc,lohn13For(notAcc))[nowMi]:0;
   const notZiel=settings.notgroschenZiel||30000;
   let h='<div class="dashGrid">'+
     '<div class="dashCell"><div class="cap">Restguthaben Monat</div>'+
@@ -481,9 +485,7 @@ function renderDash(){
       '<div class="val num '+(nw-nwStart<0?'neg':'pos')+'">'+fmt(nw-nwStart)+'</div></div>'+
     '</div>';
   h+='<div class="card" style="margin-top:12px"><h3>Sparquote '+year+'</h3>'+
-    '<div class="statLine"><span>Gespart (alle Konten, ＋ − −, ohne Kurskorrekturen)</span><b class="num pos">'+fmt(gespart)+'</b></div>'+
-    '<div class="statLine"><span>Kurskorrekturen Δ (nicht Teil der Sparquote)</span><b class="num">'+fmt(adjustSum)+'</b></div>'+
-    '<div class="statLine"><span>Zuwachs Konten (Gespart + Δ, wie im Konten-Tab)</span><b class="num">'+fmt(gespart+adjustSum)+'</b></div>'+
+    '<div class="statLine"><span>Gespart (alle Konten, ＋ − −, inkl. 13. Lohn falls gebucht)</span><b class="num pos">'+fmt(gespart)+'</b></div>'+
     '<div class="statLine"><span>Jahreslohn (editierbar)</span><b>'+inp('lohnJahr',lohnJahr)+'</b></div>'+
     '<div class="statLine"><span>Bonus (optional, nicht garantiert)</span><b>'+inp('bonus',bonus)+'</b></div>'+
     '<div class="statLine"><span>Bonus zur Sparquote hinzurechnen</span>'+
@@ -566,55 +568,70 @@ function renderMonat(){
 }
 
 /* ================= KONTEN ================= */
-function accountSaldi(a){
-  let run=a.start||0; const saldi=[];
-  (a.months||[]).forEach(m=>{run=Math.round((run+(m.plus||0)-(m.minus||0)+(m.adjust||0))*100)/100;saldi.push(run);});
+// Solange kein tatsächlicher "+"-Wert erfasst ist, wird die Prognose als
+// angenommener Zufluss verwendet (Hochrechnung Jahresende). Sobald ein
+// echter "+"-Wert eingetragen wird, ersetzt dieser die Prognose.
+// lohn13 wird rein rechnerisch on top des Dezember-Zuflusses berücksichtigt,
+// ohne das "+"-Feld selbst zu überschreiben (Platz für den normalen
+// Spartransfer bleibt erhalten).
+function accountSaldi(a,lohn13Dec){
+  let run=a.start||0; const saldi=[]; const prog=[];
+  (a.months||[]).forEach((m,mi)=>{
+    const usedProg=!m.plus&&m.prognose!=null;
+    const plusEff=(m.plus||0)||(m.prognose!=null?m.prognose:0);
+    let net=plusEff-(m.minus||0);
+    if(mi===11&&lohn13Dec) net+=lohn13Dec;
+    run=Math.round((run+net)*100)/100;
+    saldi.push(run); prog.push(usedProg);
+  });
+  saldi.usedProg=prog;
   return saldi;
 }
+function lohn13For(a){ return Y().netto?.lohn13Konto===a.name?(Y().netto.lohn13Applied||0):0; }
 function renderKonten(){
   if(!years[year]){renderMonat();return;}
   const accs=Y().accounts||[];
-  const nw=MONTHS.map((_,mi)=>accs.reduce((a,ac)=>a+accountSaldi(ac)[mi],0));
+  const nw=MONTHS.map((_,mi)=>accs.reduce((a,ac)=>a+accountSaldi(ac,lohn13For(ac))[mi],0));
   let h='<div class="card"><h3>Total Nettowert</h3>'+
     '<div class="kb" style="margin:2px 0 10px"><div><div class="cap">Aktuell (Dez)</div>'+
     '<div class="val num"><span class="dblRule">'+fmt(nw[11]||0)+'</span></div></div>'+
     '<div><div class="cap">Zuwachs im Jahr</div><div class="val num '+((nw[11]||0)-accs.reduce((a,ac)=>a+(ac.start||0),0)<0?'neg':'pos')+'">'+fmt((nw[11]||0)-accs.reduce((a,ac)=>a+(ac.start||0),0))+'</div></div>'+
     '<div><div class="cap">Konten</div><div class="val num">'+accs.length+'</div></div></div>'+
     '<div class="chartBox"><canvas id="cNW"></canvas></div>'+
-    '<p class="hint" style="margin-top:8px">Δ Kurs: Wertänderung ohne Einzahlung/Abhebung (z. B. Kursschwankung bei Depots). '+
-    'Fliesst in den Saldo und in «Zuwachs im Jahr» ein, zählt aber nicht als «Gespart» in der Sparquote (Übersicht).</p></div>';
+    '<p class="hint" style="margin-top:8px">Solange für einen Monat kein tatsächlicher „＋“-Wert erfasst ist, rechnet der Saldo mit der Prognose (Kennzeichnung „Ø“). '+
+    'Sobald du den echten Betrag einträgst, ersetzt er die Prognose automatisch.</p></div>';
   const notAcc=accs.find(a=>/sparkonto/i.test(a.name)&&!/steuer/i.test(a.name));
   const notZiel=settings.notgroschenZiel||30000;
   accs.forEach((a,ai)=>{
-    const saldi=accountSaldi(a);
+    const l13=lohn13For(a);
+    const saldi=accountSaldi(a,l13);
     const plusSum=(a.months||[]).reduce((x,m)=>x+(m.plus||0),0);
     const minusSum=(a.months||[]).reduce((x,m)=>x+(m.minus||0),0);
-    const netto=plusSum-minusSum;
-    const hasProg=(a.months||[]).some(m=>m.prognose!=null);
+    const netto=plusSum-minusSum+l13;
     h+='<div class="card"><div class="cardHeadRow"><h3><div class="labEdit" contenteditable="plaintext-only" data-path="accounts.'+ai+'.name" data-kind="text" style="font-family:\'Newsreader\',serif;font-size:1.08rem">'+esc(a.name)+'</div></h3>'+
       '<button class="miniBtn danger" data-act="delAcc" data-i="'+ai+'">Löschen</button></div>'+
-      '<div class="statLine"><span>Netto gespart im Jahr (＋ − −)</span><b class="num '+(netto<0?'neg':'pos')+'">'+fmt(netto)+'</b></div>'+
+      '<div class="statLine"><span>Netto gespart im Jahr (＋ − − , inkl. 13. Lohn falls gebucht)</span><b class="num '+(netto<0?'neg':'pos')+'">'+fmt(netto)+'</b></div>'+
+      '<div class="statLine"><span>Prognose für alle Monate setzen<br><span class="hint">zum Durchspielen möglicher Szenarien</span></span>'+
+      '<span style="display:flex;gap:6px;align-items:center"><input id="progAll_'+ai+'" class="miniInp" value="" placeholder="0.00">'+
+      '<button class="miniBtn ghost" data-act="applyProgAll" data-i="'+ai+'">Anwenden</button></span></div>'+
       (a===notAcc?('<div class="statLine"><span>Überschuss Notgroschen (Saldo Ende Jahr − Ziel '+fmt(notZiel)+')</span>'+
         '<b class="num '+((saldi[11]??a.start)-notZiel<0?'neg':'pos')+'">'+fmt((saldi[11]??a.start)-notZiel)+'</b></div>'+
         '<p class="hint" style="margin:2px 0 8px">Für Budget Ferien/Anschaffungen oder Investitionen verfügbar, sobald positiv.</p>'):'')+
-      '<div class="scrollX"><table class="ledger"><thead><tr><th>Monat</th>'+(hasProg?'<th>Prognose</th>':'')+
-      '<th>＋</th><th>−</th><th>Δ Kurs</th><th>Saldo</th></tr></thead><tbody>';
-    h+='<tr><td>Start</td>'+(hasProg?'<td></td>':'')+'<td></td><td></td><td></td><td>'+inp('accounts.'+ai+'.start',a.start)+'</td></tr>';
-    const adjustSumAcc=(a.months||[]).reduce((x,m)=>x+(m.adjust||0),0);
+      '<div class="scrollX"><table class="ledger"><thead><tr><th>Monat</th><th>Prognose</th>'+
+      '<th>＋</th><th>−</th><th>Saldo</th></tr></thead><tbody>';
+    h+='<tr><td>Start</td><td></td><td></td><td></td><td>'+inp('accounts.'+ai+'.start',a.start)+'</td></tr>';
     MONTHS.forEach((M,mi)=>{
       const m=a.months[mi]||{};
       h+='<tr><td>'+M.slice(0,3)+'</td>'+
-        (hasProg?'<td>'+inp('accounts.'+ai+'.months.'+mi+'.prognose',m.prognose??'')+'</td>':'')+
+        '<td>'+inp('accounts.'+ai+'.months.'+mi+'.prognose',m.prognose??'')+'</td>'+
         '<td>'+inp('accounts.'+ai+'.months.'+mi+'.plus',m.plus||'')+'</td>'+
         '<td>'+inp('accounts.'+ai+'.months.'+mi+'.minus',m.minus||'')+'</td>'+
-        '<td>'+inp('accounts.'+ai+'.months.'+mi+'.adjust',m.adjust||'')+'</td>'+
-        '<td class="num">'+fmt(saldi[mi])+
-        (mi===11&&Y().netto?.lohn13Applied&&Y().netto.lohn13Konto===a.name?' <span class="pill" title="13. Monatslohn verbucht">13. Lohn '+fmt(Y().netto.lohn13Applied)+'</span>':'')+
+        '<td class="num">'+fmt(saldi[mi])+(saldi.usedProg[mi]?' <span class="pill" title="Basiert auf Prognose, noch kein echter Wert erfasst">Ø</span>':'')+
+        (mi===11&&l13?' <span class="pill" title="13. Monatslohn zusätzlich zum normalen Sparbetrag">13. Lohn '+fmt(l13)+'</span>':'')+
         '</td></tr>';
     });
-    h+='<tr class="sumRow"><td>＋ Ende Jahr</td>'+(hasProg?'<td></td>':'')+
+    h+='<tr class="sumRow"><td>＋ Ende Jahr</td><td></td>'+
       '<td class="num pos">'+fmt(plusSum)+'</td><td class="num neg">'+fmt(minusSum)+'</td>'+
-      '<td class="num">'+fmt(adjustSumAcc)+'</td>'+
       '<td class="num"><span class="dblRule">'+fmt(saldi[11]||a.start)+'</span></td></tr>';
     h+='</tbody></table></div></div>';
   });
@@ -829,8 +846,9 @@ function renderMehr(){
   $('tabMehr').innerHTML=h;
   if(auth?.currentUser) $('mailLine').textContent=auth.currentUser.email||'Google-Konto';
   const ys=Object.keys(years).sort();
-  const ends=ys.map(y=>{const a=(years[y].accounts||[]);
-    return a.reduce((t,ac)=>{let r=ac.start||0;(ac.months||[]).forEach(m=>r+=(m.plus||0)-(m.minus||0)+(m.adjust||0));return t+r;},0);});
+  const ends=ys.map(y=>{const yd=years[y]; const a=(yd.accounts||[]);
+    const l13Konto=yd.netto?.lohn13Konto, l13Amt=yd.netto?.lohn13Applied||0;
+    return a.reduce((t,ac)=>t+accountSaldi(ac,ac.name===l13Konto?l13Amt:0)[11],0);});
   if(chartVergleich)chartVergleich.destroy();
   chartVergleich=new Chart($('cVergleich'),{type:'bar',data:{labels:ys,
     datasets:[{label:'Nettowert Ende Jahr',data:ends,backgroundColor:'#5B5FEF',borderRadius:8}]},
@@ -855,6 +873,13 @@ async function handleAction(d){
       yy.calc.current=JSON.parse(JSON.stringify(yy.calc.next));
       yy.calc.current.start=rest;
       toast('Folgemonat übernommen – Startkapital = bisheriges Restguthaben'); break; }
+    case 'applyProgAll': {
+      const ai=+d.i; const el=document.getElementById('progAll_'+ai);
+      const acc=yy.accounts[ai]; if(!el||!acc) return;
+      const v=pAmt(el.value);
+      acc.months=acc.months||MONTHS.map(()=>({plus:0,minus:0}));
+      acc.months.forEach(m=>{ m.prognose=v; });
+      toast('Prognose für alle 12 Monate auf '+fmt(v)+' gesetzt'); break; }
     case 'addAcc': yy.accounts.push({name:'Neues Konto',start:0,
       months:MONTHS.map(()=>({plus:0,minus:0})),extra:[]}); break;
     case 'delAcc': if(confirm('Konto wirklich löschen?')) yy.accounts.splice(+d.i,1); else return; break;
