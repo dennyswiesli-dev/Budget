@@ -527,7 +527,7 @@ function renderDash(){
     '<p><b>Mögliches Sparen</b> = Restguthaben − '+fmt(settings.lohnkontoZiel||4000)+' Lohnkonto-Ziel (Regel 1).</p>'+
     '<p><b>Nettowert</b> = Summe der Salden aller Konten im aktuellen Monat. Jeder Saldo = Start + kumulierte ＋ − kumulierte −; solange kein echter ＋-Wert erfasst ist, wird die Prognose verwendet.</p>'+
     '<p><b>Zuwachs im Jahr</b> = Nettowert aktuell − Summe der Konten-Startsalden.</p>'+
-    '<p><b>Sparquote</b> = Gespartes ÷ Jahreslohn. Gespartes = Summe (＋ minus −) über alle Konten im Jahr (tatsächlich erfasste Werte); Jahreslohn editierbar oder per Button aus dem Lohn-Tab.</p>'+
+    '<p><b>Sparquote</b> = Gespartes ÷ Jahreslohn (optional + Bonus). Gespartes = Summe (＋ minus −) über alle Konten im Jahr, inkl. Prognose (für Monate ohne echten Wert) und 13. Lohn falls gebucht – identisch mit «Zuwachs im Jahr» im Konten-Tab; Jahreslohn editierbar oder per Button aus dem Lohn-Tab.</p>'+
     '<p><b>Notgroschen</b> = Saldo des Sparkontos (erkannt am Namen, ohne «Steuern») gegen das Ziel '+fmt(settings.notgroschenZiel||30000)+'; Balken warnt ab 80 %.</p>'+
     '<p><b>FIRE</b> = Nettowert ÷ benötigtes Vermögen; benötigt = FIRE-Jahreskosten ÷ Entnahmerate ('+(((settings.fire||{}).entnahmerate||0.026)*100).toFixed(1)+' %).</p>'+
     '<p><b>Vermögens-Hochrechnung</b> = Jahresendstand des aktuellen Jahres + n × jährliches Sparen (inkl. Prognose &amp; 13. Lohn), linear für 20 Jahre – ohne Anlagerendite.</p>'+
@@ -660,7 +660,7 @@ function renderKonten(){
       '<td class="num">'+fmt(decFinal)+' <span class="pill" title="13. Monatslohn zusätzlich zum normalen Sparbetrag">13. Lohn</span></td></tr>';
     h+='<tr class="sumRow"><td>＋ Ende Jahr</td><td></td>'+
       '<td class="num pos">'+fmt(plusEffSum)+'</td><td class="num neg">'+fmt(minusSum)+'</td>'+
-      '<td class="num"><span class="dblRule">'+fmt(decFinal||a.start)+'</span></td></tr>';
+      '<td class="num"><span class="dblRule">'+fmt(Number.isFinite(decFinal)?decFinal:a.start)+'</span></td></tr>';
     h+='</tbody></table></div></div>';
   });
   h+='<button class="miniBtn" data-act="addAcc">＋ Konto hinzufügen</button> '+
