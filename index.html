@@ -438,7 +438,13 @@ document.addEventListener('change',e=>{
   const kind=el.dataset.kind;
   const val=kind==='num'?pAmt(el.value):kind==='rate'?pRate(el.value):kind==='pct'?pPct(el.value):kind==='bool'?el.checked:el.value;
   const scope=el.dataset.scope||'year';
-  setPath(scope==='settings'?settings:Y(),el.dataset.path,val);
+  const root=scope==='settings'?settings:Y();
+  setPath(root,el.dataset.path,val);
+  if(scope==='year'&&root.netto){
+    // 13. Lohn folgt automatisch dem 12. Lohn, ausser er wurde manuell abweichend gesetzt
+    if(el.dataset.path==='netto.brutto12'&&root.netto.brutto13Auto!==false) root.netto.brutto13=val;
+    else if(el.dataset.path==='netto.brutto13') root.netto.brutto13Auto=false;
+  }
   save(scope==='settings'?'settings':year);
   renderTab();
 });
@@ -757,35 +763,53 @@ const defaultNetto=()=>({brutto12:0,brutto13:0,items:[
   {label:'UVG-Beitrag NBU',rate:0.0089},{label:'PK-BVG-Beitrag',fix:0},
   {label:'KTG-Beitrag',rate:0.01433}],
   bvg:{hoechstlohn:90720,koordinationsabzug:26460,jahreslohn:0,sparsatz:0.07,zusatzsatz:0.0222658}});
-function nettoCalc(n){
-  // wie Excel: 12-Monatslöhne zuerst auf Rappen abrunden, dann auf 5 Rp. runden;
-  // 13. direkt auf 5 Rp. runden (ohne Abrunden)
-  const rows=(n.items||[]).map(it=>({
-    a12:it.rate?r05(rd2((n.brutto12||0)*it.rate)):(it.fix||0),
-    a13:it.rate?r05((n.brutto13||0)*it.rate):0}));
-  const s12=rows.reduce((a,x)=>a+x.a12,0), s13=rows.reduce((a,x)=>a+x.a13,0);
-  const n12=(n.brutto12||0)-s12, n13=(n.brutto13||0)-s13;
-  return {rows,n12,n13,jahr:Math.round((12*n12+n13)*100)/100};
-}
 function bvgCalc(b){
   const vers=Math.max(0,Math.min(b.jahreslohn||0,b.hoechstlohn||0)-(b.koordinationsabzug||0));
   const spar=vers*(b.sparsatz||0), zusatz=vers*(b.zusatzsatz||0);
   const anJahr=r05((spar+zusatz)/2);
   return {vers,spar,zusatz,anJahr,anMonat:r05(anJahr/12)};
 }
+// BVG-Jahreslohn wird live aus dem Bruttolohn abgeleitet (12 Monatslöhne + 13.),
+// nicht mehr separat erfasst.
+function bvgLive(n){
+  const b=n.bvg||defaultNetto().bvg;
+  const jahreslohn=Math.round((12*(n.brutto12||0)+(n.brutto13||0))*100)/100;
+  return {...bvgCalc({...b,jahreslohn}),jahreslohn};
+}
+function nettoCalc(n){
+  // wie Excel: 12-Monatslöhne zuerst auf Rappen abrunden, dann auf 5 Rp. runden;
+  // 13. direkt auf 5 Rp. runden (ohne Abrunden). Der PK-BVG-Fixbetrag wird live aus
+  // der BVG-Berechnung gespiegelt statt manuell übernommen zu werden.
+  const pkMonat=bvgLive(n).anMonat;
+  const rows=(n.items||[]).map(it=>{
+    const isPk=/pk|bvg/i.test(it.label||'');
+    const fixVal=isPk?pkMonat:(it.fix||0);
+    return {a12:it.rate?r05(rd2((n.brutto12||0)*it.rate)):fixVal,
+      a13:it.rate?r05((n.brutto13||0)*it.rate):0};
+  });
+  const s12=rows.reduce((a,x)=>a+x.a12,0), s13=rows.reduce((a,x)=>a+x.a13,0);
+  const n12=(n.brutto12||0)-s12, n13=(n.brutto13||0)-s13;
+  return {rows,n12,n13,jahr:Math.round((12*n12+n13)*100)/100};
+}
 function nettoSection(){
   const yy=Y();
   if(!yy.netto) yy.netto=defaultNetto();
-  const n=yy.netto, c=nettoCalc(n), b=n.bvg||defaultNetto().bvg, bc=bvgCalc(b);
+  const n=yy.netto, c=nettoCalc(n), bc=bvgLive(n), b=n.bvg||defaultNetto().bvg;
   let h='<p class="sectionCap">Nettolohnberechnung '+year+'</p><div class="card">'+
     '<div class="scrollX"><table class="ledger"><thead><tr><th>Position</th><th>Satz (%)</th>'+
     '<th>12 Monatslöhne</th><th>13.</th><th></th></tr></thead><tbody>';
   h+='<tr><td class="labCol"><b>Bruttolohn</b></td><td></td>'+
-    '<td>'+inp('netto.brutto12',n.brutto12)+'</td><td>'+inp('netto.brutto13',n.brutto13)+'</td><td></td></tr>';
+    '<td>'+inp('netto.brutto12',n.brutto12)+'</td><td>'+inp('netto.brutto13',n.brutto13)+
+    (n.brutto13Auto===false?' <button class="rowDel" data-act="resyncBrutto13" title="Wieder an 12. Lohn koppeln">↺</button>':'')+
+    '</td><td></td></tr>';
+  if(n.brutto13Auto===false) h+='<tr><td colspan="4"><p class="hint" style="margin:0">13. Lohn manuell angepasst (Ausnahme) – folgt nicht mehr automatisch dem 12. Lohn. ↺ zum Zurücksetzen.</p></td></tr>';
   (n.items||[]).forEach((it,ix)=>{
+    const isPk=/pk|bvg/i.test(it.label||'');
     h+='<tr><td class="labCol">'+inp('netto.items.'+ix+'.label',it.label,{lab:1,kind:'text'})+'</td>'+
       '<td>'+(it.rate!=null&&!it.fix?inp('netto.items.'+ix+'.rate',it.rate,{kind:'pct'}):
-        inp('netto.items.'+ix+'.fix',it.fix||0)+'<br><span class="hint" style="font-size:.68rem">≈ '+
+        isPk?('<span class="num">'+fmt(bc.anMonat)+'</span><br><span class="hint" style="font-size:.68rem">automatisch aus BVG-Karte unten, ≈ '+
+          (n.brutto12?(bc.anMonat/n.brutto12*100).toFixed(2):'0.00')+' % vom Lohn</span>')
+        :inp('netto.items.'+ix+'.fix',it.fix||0)+'<br><span class="hint" style="font-size:.68rem">≈ '+
         (n.brutto12?(c.rows[ix].a12/n.brutto12*100).toFixed(2):'0.00')+' % vom Lohn</span>')+'</td>'+
       '<td class="num neg">−'+fmt(c.rows[ix].a12)+'</td>'+
       '<td class="num neg">'+(c.rows[ix].a13?'−'+fmt(c.rows[ix].a13):'–')+'</td>'+
@@ -809,7 +833,7 @@ function nettoSection(){
   h+='<div class="card"><h3>BVG-Pensionskasse</h3>'+
     '<div class="statLine"><span>Höchstlohn</span><b>'+inp('netto.bvg.hoechstlohn',b.hoechstlohn)+'</b></div>'+
     '<div class="statLine"><span>Koordinationsabzug</span><b>'+inp('netto.bvg.koordinationsabzug',b.koordinationsabzug)+'</b></div>'+
-    '<div class="statLine"><span>Jahreslohn (brutto)</span><b>'+inp('netto.bvg.jahreslohn',b.jahreslohn)+'</b></div>'+
+    '<div class="statLine"><span>Jahreslohn (brutto, automatisch aus 12 × Bruttolohn + 13.)</span><b class="num">'+fmt(bc.jahreslohn)+'</b></div>'+
     '<div class="statLine"><span>Versicherter Lohn</span><b class="num">'+fmt(bc.vers)+'</b></div>'+
     '<div class="statLine"><span>Sparbeitragssatz (%)</span><b>'+inp('netto.bvg.sparsatz',b.sparsatz,{kind:'pct'})+'</b></div>'+
     '<div class="statLine"><span>Zusatzkosten-Satz (%)</span><b>'+inp('netto.bvg.zusatzsatz',b.zusatzsatz,{kind:'pct'})+'</b></div>'+
@@ -818,8 +842,7 @@ function nettoSection(){
     '<div class="statLine"><span>Arbeitnehmerabzug / Jahr (½)</span><b class="num">'+fmt(bc.anJahr)+'</b></div>'+
     '<div class="statLine"><span>Arbeitnehmerabzug / Monat</span>'+
     '<b class="num"><span class="dblRule">'+fmt(bc.anMonat)+'</span></b></div>'+
-    '<div class="statLine"><span>Als PK-BVG-Abzug oben eintragen</span>'+
-    '<button class="miniBtn" data-act="bvgApply">Übernehmen</button></div></div>';
+    '<p class="hint" style="margin-top:4px">Wird automatisch oben als PK-BVG-Abzug verwendet – kein manuelles Übernehmen mehr nötig.</p></div>';
   return h;
 }
 
@@ -929,12 +952,8 @@ async function handleAction(d){
       dec.plus=Math.round(((dec.plus||0)-prev+n13)*100)/100;
       yy.netto.lohn13Applied=n13; yy.netto.lohn13Konto=notAcc.name;
       toast('13. Monatslohn '+fmt(n13)+' im Dezember von „'+notAcc.name+'“ verbucht'); break; }
-    case 'bvgApply': {
-      const pk=(yy.netto.items||[]).find(i=>/pk|bvg/i.test(i.label));
-      const v=bvgCalc(yy.netto.bvg).anMonat;
-      if(pk){ pk.fix=v; delete pk.rate; }
-      else yy.netto.items.push({label:'PK-BVG-Beitrag',fix:v});
-      toast('PK-BVG-Abzug auf '+fmt(v)+' gesetzt'); break; }
+    case 'resyncBrutto13': yy.netto.brutto13Auto=true; yy.netto.brutto13=yy.netto.brutto12||0;
+      toast('13. Lohn wieder an 12. Lohn gekoppelt'); break;
     case 'carryOverBalances': {
       const nextYear=String(+year+1);
       if(!years[nextYear]) years[nextYear]=emptyYear();
