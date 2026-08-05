@@ -341,6 +341,9 @@ function save(docId){
   clearTimeout(saveTimer);
   saveTimer=setTimeout(flushSave,900);
 }
+window.addEventListener('beforeunload',e=>{
+  if(Object.keys(dirty).length){ e.preventDefault(); e.returnValue=''; }
+});
 async function loadAll(){
   const s=await col().get();
   years={};
@@ -429,7 +432,18 @@ document.addEventListener('focusout',e=>{
   const el=e.target;
   if(!el.classList||!el.classList.contains('labEdit')||!el.dataset.path) return;
   const scope=el.dataset.scope||'year';
-  setPath(scope==='settings'?settings:Y(),el.dataset.path,el.textContent.trim());
+  const root=scope==='settings'?settings:Y();
+  const newVal=el.textContent.trim();
+  if(scope==='year'&&/^accounts\.\d+\.name$/.test(el.dataset.path)){
+    const oldVal=getPath(root,el.dataset.path);
+    // Referenzen (13. Lohn, Notgroschen-Markierung) bei Umbenennung mitziehen,
+    // damit sie nicht durch einen Namenswechsel stillschweigend brechen.
+    if(oldVal!==newVal){
+      if(root.netto?.lohn13Konto===oldVal) root.netto.lohn13Konto=newVal;
+      if(settings.notgroschenAccName===oldVal){ settings.notgroschenAccName=newVal; save('settings'); }
+    }
+  }
+  setPath(root,el.dataset.path,newVal);
   save(scope==='settings'?'settings':year);
   renderTab();
 });
@@ -438,7 +452,13 @@ document.addEventListener('change',e=>{
   const kind=el.dataset.kind;
   const val=kind==='num'?pAmt(el.value):kind==='rate'?pRate(el.value):kind==='pct'?pPct(el.value):kind==='bool'?el.checked:el.value;
   const scope=el.dataset.scope||'year';
-  setPath(scope==='settings'?settings:Y(),el.dataset.path,val);
+  const root=scope==='settings'?settings:Y();
+  setPath(root,el.dataset.path,val);
+  if(scope==='year'&&root.netto){
+    // 13. Lohn folgt automatisch dem 12. Lohn, ausser er wurde manuell abweichend gesetzt
+    if(el.dataset.path==='netto.brutto12'&&root.netto.brutto13Auto!==false) root.netto.brutto13=val;
+    else if(el.dataset.path==='netto.brutto13') root.netto.brutto13Auto=false;
+  }
   save(scope==='settings'?'settings':year);
   renderTab();
 });
@@ -473,7 +493,7 @@ function renderDash(){
   const fire=settings.fire||{};
   const fSum=(fire.items||[]).reduce((a,i)=>a+(i.value||0),0);
   const noetig=fire.entnahmerate?fSum/fire.entnahmerate:0;
-  const notAcc=accs.find(a=>/sparkonto/i.test(a.name)&&!/steuer/i.test(a.name));
+  const notAcc=findNotAcc(accs);
   const notSaldo=notAcc?acctSaldoAt(notAcc,nowMi):0;
   const notZiel=settings.notgroschenZiel||30000;
   const yearEndNW=accs.reduce((a,ac)=>a+acctSaldoAt(ac,11),0);
@@ -521,7 +541,7 @@ function renderDash(){
     '<p><b>Mögliches Sparen</b> = Restguthaben − '+fmt(settings.lohnkontoZiel||4000)+' Lohnkonto-Ziel (Regel 1).</p>'+
     '<p><b>Nettowert</b> = Summe der Salden aller Konten im aktuellen Monat. Jeder Saldo = Start + kumulierte ＋ − kumulierte −; solange kein echter ＋-Wert erfasst ist, wird die Prognose verwendet.</p>'+
     '<p><b>Zuwachs im Jahr</b> = Nettowert aktuell − Summe der Konten-Startsalden.</p>'+
-    '<p><b>Sparquote</b> = Gespartes ÷ Jahreslohn. Gespartes = Summe (＋ minus −) über alle Konten im Jahr (tatsächlich erfasste Werte); Jahreslohn editierbar oder per Button aus dem Lohn-Tab.</p>'+
+    '<p><b>Sparquote</b> = Gespartes ÷ Jahreslohn (optional + Bonus). Gespartes = Summe (＋ minus −) über alle Konten im Jahr, inkl. Prognose (für Monate ohne echten Wert) und 13. Lohn falls gebucht – identisch mit «Zuwachs im Jahr» im Konten-Tab; Jahreslohn editierbar oder per Button aus dem Lohn-Tab.</p>'+
     '<p><b>Notgroschen</b> = Saldo des Sparkontos (erkannt am Namen, ohne «Steuern») gegen das Ziel '+fmt(settings.notgroschenZiel||30000)+'; Balken warnt ab 80 %.</p>'+
     '<p><b>FIRE</b> = Nettowert ÷ benötigtes Vermögen; benötigt = FIRE-Jahreskosten ÷ Entnahmerate ('+(((settings.fire||{}).entnahmerate||0.026)*100).toFixed(1)+' %).</p>'+
     '<p><b>Vermögens-Hochrechnung</b> = Jahresendstand des aktuellen Jahres + n × jährliches Sparen (inkl. Prognose &amp; 13. Lohn), linear für 20 Jahre – ohne Anlagerendite.</p>'+
@@ -606,6 +626,15 @@ function accountSaldi(a){
   return saldi;
 }
 function lohn13For(a){ return Y().netto?.lohn13Konto===a.name?(Y().netto.lohn13Applied||0):0; }
+// Notgroschen-Konto: explizite Markierung (settings.notgroschenAccName) hat Vorrang,
+// sonst automatische Erkennung am Namen als Fallback (Altdaten/Erstnutzung).
+function findNotAcc(accs){
+  if(settings.notgroschenAccName){
+    const hit=accs.find(a=>a.name===settings.notgroschenAccName);
+    if(hit) return hit;
+  }
+  return accs.find(a=>/sparkonto/i.test(a.name)&&!/steuer/i.test(a.name));
+}
 // Saldo eines Kontos am Ende von Monat mi (0-11), inkl. 13. Monatslohn ab Dezember
 function acctSaldoAt(a,mi){ const s=accountSaldi(a)[mi]; return mi===11?s+lohn13For(a):s; }
 function renderKonten(){
@@ -620,7 +649,7 @@ function renderKonten(){
     '<div class="chartBox"><canvas id="cNW"></canvas></div>'+
     '<p class="hint" style="margin-top:8px">Solange für einen Monat kein tatsächlicher „＋“-Wert erfasst ist, rechnet der Saldo mit der Prognose (Kennzeichnung „Ø“). '+
     'Sobald du den echten Betrag einträgst, ersetzt er die Prognose automatisch.</p></div>';
-  const notAcc=accs.find(a=>/sparkonto/i.test(a.name)&&!/steuer/i.test(a.name));
+  const notAcc=findNotAcc(accs);
   const notZiel=settings.notgroschenZiel||30000;
   accs.forEach((a,ai)=>{
     const l13=lohn13For(a);
@@ -630,6 +659,8 @@ function renderKonten(){
     const minusSum=(a.months||[]).reduce((x,m)=>x+(m.minus||0),0);
     const netto=plusEffSum-minusSum+l13;
     h+='<div class="card"><div class="cardHeadRow"><h3><div class="labEdit" contenteditable="plaintext-only" data-path="accounts.'+ai+'.name" data-kind="text" style="font-family:\'Sora\',sans-serif;font-size:1.08rem">'+esc(a.name)+'</div></h3>'+
+      (a===notAcc?'<span class="pill" title="Notgroschen-Konto">★ Notgroschen</span>':
+        '<button class="miniBtn ghost" data-act="markNotgroschen" data-i="'+ai+'">Als Notgroschen markieren</button>')+
       '<button class="miniBtn danger" data-act="delAcc" data-i="'+ai+'">Löschen</button></div>'+
       '<div class="statLine"><span>Netto gespart im Jahr (inkl. Prognose &amp; 13. Lohn falls gebucht)</span><b class="num '+(netto<0?'neg':'pos')+'">'+fmt(netto)+'</b></div>'+
       '<div class="statLine"><span>Prognose für alle Monate setzen<br><span class="hint">zum Durchspielen möglicher Szenarien</span></span>'+
@@ -654,7 +685,7 @@ function renderKonten(){
       '<td class="num">'+fmt(decFinal)+' <span class="pill" title="13. Monatslohn zusätzlich zum normalen Sparbetrag">13. Lohn</span></td></tr>';
     h+='<tr class="sumRow"><td>＋ Ende Jahr</td><td></td>'+
       '<td class="num pos">'+fmt(plusEffSum)+'</td><td class="num neg">'+fmt(minusSum)+'</td>'+
-      '<td class="num"><span class="dblRule">'+fmt(decFinal||a.start)+'</span></td></tr>';
+      '<td class="num"><span class="dblRule">'+fmt(Number.isFinite(decFinal)?decFinal:a.start)+'</span></td></tr>';
     h+='</tbody></table></div></div>';
   });
   h+='<button class="miniBtn" data-act="addAcc">＋ Konto hinzufügen</button> '+
@@ -708,8 +739,9 @@ const ccTot=e=>e.amount!=null?e.amount:(e.amounts||[]).reduce((a,x)=>a+x,0);
 function renderKK(){
   if(!years[year]){renderMonat();return;}
   const yy=Y();
-  const cc=yy.ccCalc||{current:[],next:[],cashbackRate:0.003};
-  let h='';
+  const cc=yy.ccCalc=yy.ccCalc||{current:[],next:[],cashbackRate:0.003};
+  let h='<div class="card"><div class="statLine"><span>Cashback-Satz (%)</span>'+
+    '<b>'+inp('ccCalc.cashbackRate',cc.cashbackRate??0.003,{kind:'pct'})+'</b></div></div>';
   // Kalkulation nächster Monat
   [['current','Kalkulation aktueller Monat'],['next','Kalkulation nächster Monat']].forEach(([side,title])=>{
     const tot=(cc[side]||[]).reduce((a,i)=>a+(i.value||0),0);
@@ -723,7 +755,7 @@ function renderKK(){
         '<td>'+inp('ccCalc.'+side+'.'+ix+'.value',i.value)+'</td>'+
         '<td><button class="rowDel" data-act="del" data-p="ccCalc.'+side+'" data-i="'+ix+'">✕</button></td></tr>';});
     h+='<tr class="sumRow"><td>Total</td><td class="num"><span class="dblRule">'+fmt(tot)+'</span></td><td></td></tr></tbody></table>'+
-      '<div class="statLine"><span>Cashback ('+((cc.cashbackRate||0.003)*100).toFixed(1)+'%)</span><b class="num pos">'+fmt(tot*(cc.cashbackRate||0.003))+'</b></div></div>';
+      '<div class="statLine"><span>Cashback ('+((cc.cashbackRate??0.003)*100).toFixed(2)+' %)</span><b class="num pos">'+fmt(tot*(cc.cashbackRate??0.003))+'</b></div></div>';
   });
   // Monatswerte + Durchschnitt
   [['ccOwn','Eigene Karte – Monatswerte',false],['ccShared','Gemeinsame Karte – Monatswerte',true]].forEach(([key,title,shared])=>{
@@ -754,38 +786,56 @@ const r05=x=>Math.round(x*20)/20;   // Schweizer Rappenrundung auf 5 Rp.
 const rd2=x=>Math.floor(x*100)/100; // Abrunden auf Rappen (ROUNDDOWN,2)
 const defaultNetto=()=>({brutto12:0,brutto13:0,items:[
   {label:'AHV-Beitrag',rate:0.053},{label:'ALV-Beitrag',rate:0.011},
-  {label:'UVG-Beitrag NBU',rate:0.0089},{label:'PK-BVG-Beitrag',fix:0},
+  {label:'UVG-Beitrag NBU',rate:0.0089},{label:'PK-BVG-Beitrag',fix:0,isPk:true},
   {label:'KTG-Beitrag',rate:0.01433}],
   bvg:{hoechstlohn:90720,koordinationsabzug:26460,jahreslohn:0,sparsatz:0.07,zusatzsatz:0.0222658}});
-function nettoCalc(n){
-  // wie Excel: 12-Monatslöhne zuerst auf Rappen abrunden, dann auf 5 Rp. runden;
-  // 13. direkt auf 5 Rp. runden (ohne Abrunden)
-  const rows=(n.items||[]).map(it=>({
-    a12:it.rate?r05(rd2((n.brutto12||0)*it.rate)):(it.fix||0),
-    a13:it.rate?r05((n.brutto13||0)*it.rate):0}));
-  const s12=rows.reduce((a,x)=>a+x.a12,0), s13=rows.reduce((a,x)=>a+x.a13,0);
-  const n12=(n.brutto12||0)-s12, n13=(n.brutto13||0)-s13;
-  return {rows,n12,n13,jahr:Math.round((12*n12+n13)*100)/100};
-}
 function bvgCalc(b){
   const vers=Math.max(0,Math.min(b.jahreslohn||0,b.hoechstlohn||0)-(b.koordinationsabzug||0));
   const spar=vers*(b.sparsatz||0), zusatz=vers*(b.zusatzsatz||0);
   const anJahr=r05((spar+zusatz)/2);
   return {vers,spar,zusatz,anJahr,anMonat:r05(anJahr/12)};
 }
+// BVG-Jahreslohn wird live aus dem Bruttolohn abgeleitet (12 Monatslöhne + 13.),
+// nicht mehr separat erfasst.
+function bvgLive(n){
+  const b=n.bvg||defaultNetto().bvg;
+  const jahreslohn=Math.round((12*(n.brutto12||0)+(n.brutto13||0))*100)/100;
+  return {...bvgCalc({...b,jahreslohn}),jahreslohn};
+}
+function nettoCalc(n){
+  // wie Excel: 12-Monatslöhne zuerst auf Rappen abrunden, dann auf 5 Rp. runden;
+  // 13. direkt auf 5 Rp. runden (ohne Abrunden). Der PK-BVG-Fixbetrag wird live aus
+  // der BVG-Berechnung gespiegelt statt manuell übernommen zu werden.
+  const pkMonat=bvgLive(n).anMonat;
+  const rows=(n.items||[]).map(it=>{
+    const isPk=it.isPk||/pk|bvg/i.test(it.label||'');
+    const fixVal=isPk?pkMonat:(it.fix||0);
+    return {a12:it.rate?r05(rd2((n.brutto12||0)*it.rate)):fixVal,
+      a13:it.rate?r05((n.brutto13||0)*it.rate):0};
+  });
+  const s12=rows.reduce((a,x)=>a+x.a12,0), s13=rows.reduce((a,x)=>a+x.a13,0);
+  const n12=(n.brutto12||0)-s12, n13=(n.brutto13||0)-s13;
+  return {rows,n12,n13,jahr:Math.round((12*n12+n13)*100)/100};
+}
 function nettoSection(){
   const yy=Y();
   if(!yy.netto) yy.netto=defaultNetto();
-  const n=yy.netto, c=nettoCalc(n), b=n.bvg||defaultNetto().bvg, bc=bvgCalc(b);
+  const n=yy.netto, c=nettoCalc(n), bc=bvgLive(n), b=n.bvg||defaultNetto().bvg;
   let h='<p class="sectionCap">Nettolohnberechnung '+year+'</p><div class="card">'+
     '<div class="scrollX"><table class="ledger"><thead><tr><th>Position</th><th>Satz (%)</th>'+
     '<th>12 Monatslöhne</th><th>13.</th><th></th></tr></thead><tbody>';
   h+='<tr><td class="labCol"><b>Bruttolohn</b></td><td></td>'+
-    '<td>'+inp('netto.brutto12',n.brutto12)+'</td><td>'+inp('netto.brutto13',n.brutto13)+'</td><td></td></tr>';
+    '<td>'+inp('netto.brutto12',n.brutto12)+'</td><td>'+inp('netto.brutto13',n.brutto13)+
+    (n.brutto13Auto===false?' <button class="rowDel" data-act="resyncBrutto13" title="Wieder an 12. Lohn koppeln">↺</button>':'')+
+    '</td><td></td></tr>';
+  if(n.brutto13Auto===false) h+='<tr><td colspan="4"><p class="hint" style="margin:0">13. Lohn manuell angepasst (Ausnahme) – folgt nicht mehr automatisch dem 12. Lohn. ↺ zum Zurücksetzen.</p></td></tr>';
   (n.items||[]).forEach((it,ix)=>{
+    const isPk=it.isPk||/pk|bvg/i.test(it.label||'');
     h+='<tr><td class="labCol">'+inp('netto.items.'+ix+'.label',it.label,{lab:1,kind:'text'})+'</td>'+
       '<td>'+(it.rate!=null&&!it.fix?inp('netto.items.'+ix+'.rate',it.rate,{kind:'pct'}):
-        inp('netto.items.'+ix+'.fix',it.fix||0)+'<br><span class="hint" style="font-size:.68rem">≈ '+
+        isPk?('<span class="num">'+fmt(bc.anMonat)+'</span><br><span class="hint" style="font-size:.68rem">automatisch aus BVG-Karte unten, ≈ '+
+          (n.brutto12?(bc.anMonat/n.brutto12*100).toFixed(2):'0.00')+' % vom Lohn</span>')
+        :inp('netto.items.'+ix+'.fix',it.fix||0)+'<br><span class="hint" style="font-size:.68rem">≈ '+
         (n.brutto12?(c.rows[ix].a12/n.brutto12*100).toFixed(2):'0.00')+' % vom Lohn</span>')+'</td>'+
       '<td class="num neg">−'+fmt(c.rows[ix].a12)+'</td>'+
       '<td class="num neg">'+(c.rows[ix].a13?'−'+fmt(c.rows[ix].a13):'–')+'</td>'+
@@ -809,7 +859,7 @@ function nettoSection(){
   h+='<div class="card"><h3>BVG-Pensionskasse</h3>'+
     '<div class="statLine"><span>Höchstlohn</span><b>'+inp('netto.bvg.hoechstlohn',b.hoechstlohn)+'</b></div>'+
     '<div class="statLine"><span>Koordinationsabzug</span><b>'+inp('netto.bvg.koordinationsabzug',b.koordinationsabzug)+'</b></div>'+
-    '<div class="statLine"><span>Jahreslohn (brutto)</span><b>'+inp('netto.bvg.jahreslohn',b.jahreslohn)+'</b></div>'+
+    '<div class="statLine"><span>Jahreslohn (brutto, automatisch aus 12 × Bruttolohn + 13.)</span><b class="num">'+fmt(bc.jahreslohn)+'</b></div>'+
     '<div class="statLine"><span>Versicherter Lohn</span><b class="num">'+fmt(bc.vers)+'</b></div>'+
     '<div class="statLine"><span>Sparbeitragssatz (%)</span><b>'+inp('netto.bvg.sparsatz',b.sparsatz,{kind:'pct'})+'</b></div>'+
     '<div class="statLine"><span>Zusatzkosten-Satz (%)</span><b>'+inp('netto.bvg.zusatzsatz',b.zusatzsatz,{kind:'pct'})+'</b></div>'+
@@ -818,8 +868,7 @@ function nettoSection(){
     '<div class="statLine"><span>Arbeitnehmerabzug / Jahr (½)</span><b class="num">'+fmt(bc.anJahr)+'</b></div>'+
     '<div class="statLine"><span>Arbeitnehmerabzug / Monat</span>'+
     '<b class="num"><span class="dblRule">'+fmt(bc.anMonat)+'</span></b></div>'+
-    '<div class="statLine"><span>Als PK-BVG-Abzug oben eintragen</span>'+
-    '<button class="miniBtn" data-act="bvgApply">Übernehmen</button></div></div>';
+    '<p class="hint" style="margin-top:4px">Wird automatisch oben als PK-BVG-Abzug verwendet – kein manuelles Übernehmen mehr nötig.</p></div>';
   return h;
 }
 
@@ -852,7 +901,7 @@ function renderMehr(){
   h+='<tr class="sumRow"><td>Kosten pro Jahr</td><td class="num">'+fmt(fSum)+'</td><td></td></tr></tbody></table>'+
     '<button class="miniBtn ghost" data-act="addFire" style="margin:8px 0 4px">＋ Position</button>'+
     '<div class="statLine"><span>Kosten pro Monat</span><b class="num">'+fmt(fSum/12)+'</b></div>'+
-    '<div class="statLine"><span>Entnahmerate</span><b><input data-scope="settings" data-path="fire.entnahmerate" data-kind="rate" value="'+(fire.entnahmerate||0.026)+'" style="width:70px"></b></div>'+
+    '<div class="statLine"><span>Entnahmerate (%)</span><b><input data-scope="settings" data-path="fire.entnahmerate" data-kind="pct" value="'+fmtPct(fire.entnahmerate||0.026)+'" style="width:70px"></b></div>'+
     '<div class="statLine"><span>Benötigtes Vermögen</span><b class="num"><span class="dblRule">'+fmt(noetig)+'</span></b></div>'+
     '<div class="statLine"><span>Ziel-Vermögen</span><b><input data-scope="settings" data-path="fire.vermoegen" data-kind="num" value="'+fmtInp(fire.vermoegen||0)+'" style="width:110px"></b></div></div>';
   h+='<p class="sectionCap">Meine Finanzregeln</p><div class="card">';
@@ -908,6 +957,10 @@ async function handleAction(d){
     case 'addAcc': yy.accounts.push({name:'Neues Konto',start:0,
       months:MONTHS.map(()=>({plus:0,minus:0})),extra:[]}); break;
     case 'delAcc': if(confirm('Konto wirklich löschen?')) yy.accounts.splice(+d.i,1); else return; break;
+    case 'markNotgroschen': {
+      const acc=yy.accounts[+d.i]; if(!acc) return;
+      settings.notgroschenAccName=acc.name; save('settings');
+      toast('„'+acc.name+'“ als Notgroschen-Konto markiert'); renderTab(); return; }
     case 'addAbzug': (yy.netto.items=yy.netto.items||[]).push({label:'Neu',rate:0}); break;
     case 'nettoZuLohn': {
       const netto=nettoCalc(yy.netto).n12;
@@ -920,8 +973,8 @@ async function handleAction(d){
     case 'lohnApply': yy.lohnJahr=Math.round(nettoCalc(yy.netto).jahr);
       toast('Netto-Jahreslohn für die Sparquote übernommen'); break;
     case 'lohn13ToKonto': {
-      const notAcc=(yy.accounts||[]).find(a=>/sparkonto/i.test(a.name)&&!/steuer/i.test(a.name));
-      if(!notAcc){ toast('Kein Sparkonto gefunden (Kontoname muss „Sparkonto“ enthalten)'); return; }
+      const notAcc=findNotAcc(yy.accounts||[]);
+      if(!notAcc){ toast('Kein Sparkonto gefunden – markiere im Konten-Tab eines als Notgroschen-Konto oder benenne es „Sparkonto“'); return; }
       const n13=nettoCalc(yy.netto).n13;
       const prev=yy.netto.lohn13Applied||0;
       notAcc.months=notAcc.months||MONTHS.map(()=>({plus:0,minus:0}));
@@ -929,12 +982,8 @@ async function handleAction(d){
       dec.plus=Math.round(((dec.plus||0)-prev+n13)*100)/100;
       yy.netto.lohn13Applied=n13; yy.netto.lohn13Konto=notAcc.name;
       toast('13. Monatslohn '+fmt(n13)+' im Dezember von „'+notAcc.name+'“ verbucht'); break; }
-    case 'bvgApply': {
-      const pk=(yy.netto.items||[]).find(i=>/pk|bvg/i.test(i.label));
-      const v=bvgCalc(yy.netto.bvg).anMonat;
-      if(pk){ pk.fix=v; delete pk.rate; }
-      else yy.netto.items.push({label:'PK-BVG-Beitrag',fix:v});
-      toast('PK-BVG-Abzug auf '+fmt(v)+' gesetzt'); break; }
+    case 'resyncBrutto13': yy.netto.brutto13Auto=true; yy.netto.brutto13=yy.netto.brutto12||0;
+      toast('13. Lohn wieder an 12. Lohn gekoppelt'); break;
     case 'carryOverBalances': {
       const nextYear=String(+year+1);
       if(!years[nextYear]) years[nextYear]=emptyYear();
