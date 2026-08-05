@@ -73,10 +73,13 @@ header.appHead{background:linear-gradient(120deg,#5B5FEF,#8B5CF6);color:#fff;
 .headBrand{display:flex;align-items:center;gap:9px}
 .headBrand img{width:30px;height:30px;border-radius:9px;box-shadow:0 2px 8px rgba(0,0,0,.2)}
 .headBrand span{font-family:'Sora',sans-serif;font-weight:700;font-size:1.1rem;letter-spacing:-.01em}
-.yearNav{display:flex;align-items:center;gap:2px;background:rgba(255,255,255,.14);border-radius:99px;padding:3px}
-.yearNav .y{font-family:'Sora',sans-serif;font-weight:700;font-size:1.05rem;min-width:60px;text-align:center}
-.yearNav button{width:30px;height:30px;border-radius:50%;color:#fff;font-size:1.05rem;opacity:.85}
-.yearNav button:hover{background:rgba(255,255,255,.18);opacity:1}
+.yearNav{display:flex;align-items:center;gap:2px;background:rgba(255,255,255,.18);
+  border:1px solid rgba(255,255,255,.28);border-radius:99px;padding:3px;overflow:hidden}
+.yearNav .y{font-family:'Sora',sans-serif;font-weight:700;font-size:1.05rem;min-width:60px;
+  line-height:30px;text-align:center}
+.yearNav button{width:30px;height:30px;border-radius:50%;color:#fff;font-size:1.05rem;
+  opacity:.9;display:grid;place-items:center;flex:none}
+.yearNav button:hover{background:rgba(255,255,255,.2);opacity:1}
 .iconBtn{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;font-size:1.05rem;
   background:rgba(255,255,255,.14);color:#fff}
 .iconBtn:hover{background:rgba(255,255,255,.24)}
