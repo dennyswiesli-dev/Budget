@@ -1,4 +1,4 @@
-const CACHE = 'lohnkalk-v1';
+const CACHE = 'lohnkalk-v2';
 const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
@@ -11,7 +11,7 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   e.respondWith(
-    fetch(e.request).then(res => {
+    fetch(e.request, { cache: 'no-store' }).then(res => {
       const copy = res.clone();
       if (e.request.url.startsWith(self.location.origin)) {
         caches.open(CACHE).then(c => c.put(e.request, copy));
