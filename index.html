@@ -89,8 +89,9 @@ main{max-width:760px;margin:0 auto;padding:16px 12px 8px}
 .card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);
   padding:16px 14px;margin-bottom:14px;border:1px solid var(--rule);overflow-x:auto}
 .card h3{font-size:1.05rem;margin-bottom:10px;color:var(--ink)}
-.cardHeadRow{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.cardHeadRow{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:2px;flex-wrap:wrap}
 .cardHeadRow h3{margin:0}
+.cardActions{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
 .miniBtn{padding:8px 14px;border-radius:99px;background:var(--primary);color:#fff;
   font-size:.82rem;font-weight:600;white-space:nowrap;transition:transform .12s,box-shadow .12s;box-shadow:0 2px 8px -2px rgba(91,95,239,.5)}
 .miniBtn:hover{transform:translateY(-1px)}
@@ -575,10 +576,10 @@ function sideCard(side,title){
   const s=Y().calc[side], c=calcSide(s);
   const now=side==='current';
   let h='<div class="card '+(now?'cardNow':'cardNext')+'"><div class="cardHeadRow"><h3>'+title+
-    '<span class="tag '+(now?'tagNow':'tagNext')+'">'+(now?'Aktuell':'Folgemonat')+'</span></h3>';
-  if(side==='current') h+='<span><button class="miniBtn ghost" data-act="restNext">Rest → Folgemonat</button> '+
-    '<button class="miniBtn" data-act="monthRoll">Monatswechsel</button></span>';
-  h+='</div><table class="ledger"><tbody>';
+    '<span class="tag '+(now?'tagNow':'tagNext')+'">'+(now?'Aktuell':'Folgemonat')+'</span></h3></div>';
+  if(side==='current') h+='<div class="cardActions"><button class="miniBtn ghost" data-act="restNext">Rest → Folgemonat</button> '+
+    '<button class="miniBtn" data-act="monthRoll">Monatswechsel</button></div>';
+  h+='<table class="ledger"><tbody>';
   h+='<tr><td>Startkapital Zahlungskonto</td><td>'+inp('calc.'+side+'.start',s.start)+'</td><td></td></tr>';
   (s.income||[]).forEach((i,ix)=>{
     h+='<tr><td class="labCol">'+inp('calc.'+side+'.income.'+ix+'.label',i.label,{lab:1,kind:'text'})+'</td>'+
@@ -666,7 +667,8 @@ function renderKonten(){
     const plusEffSum=(a.months||[]).reduce((x,m)=>x+((m.plus||0)||(m.prognose!=null?m.prognose:0)),0);
     const minusSum=(a.months||[]).reduce((x,m)=>x+(m.minus||0),0);
     const netto=plusEffSum-minusSum+l13;
-    h+='<div class="card"><div class="cardHeadRow"><h3><div class="labEdit" contenteditable="plaintext-only" data-path="accounts.'+ai+'.name" data-kind="text" style="font-family:\'Sora\',sans-serif;font-size:1.08rem">'+esc(a.name)+'</div></h3>'+
+    h+='<div class="card"><div class="cardHeadRow"><h3><div class="labEdit" contenteditable="plaintext-only" data-path="accounts.'+ai+'.name" data-kind="text" style="font-family:\'Sora\',sans-serif;font-size:1.08rem">'+esc(a.name)+'</div></h3></div>'+
+      '<div class="cardActions">'+
       (a===notAcc?'<span class="pill" title="Notgroschen-Konto">★ Notgroschen</span>':
         '<button class="miniBtn ghost" data-act="markNotgroschen" data-i="'+ai+'">Als Notgroschen markieren</button>')+
       '<button class="miniBtn danger" data-act="delAcc" data-i="'+ai+'">Löschen</button></div>'+
@@ -712,8 +714,8 @@ function renderFix(){
   if(!years[year]){renderMonat();return;}
   const fk=Y().fixkosten;
   const sum=(fk.items||[]).reduce((a,i)=>a+(i.value||0),0);
-  let h='<div class="card"><div class="cardHeadRow"><h3>Jährliche Ausgaben</h3>'+
-    '<button class="miniBtn ghost" data-act="add" data-p="fixkosten.items">＋ Position</button></div>'+
+  let h='<div class="card"><div class="cardHeadRow"><h3>Jährliche Ausgaben</h3></div>'+
+    '<div class="cardActions"><button class="miniBtn ghost" data-act="add" data-p="fixkosten.items">＋ Position</button></div>'+
     '<table class="ledger"><tbody>';
   (fk.items||[]).forEach((i,ix)=>{
     h+='<tr><td class="labCol">'+inp('fixkosten.items.'+ix+'.label',i.label,{lab:1,kind:'text'})+'</td>'+
@@ -755,8 +757,8 @@ function renderKK(){
     const tot=(cc[side]||[]).reduce((a,i)=>a+(i.value||0),0);
     const now=side==='current';
     h+='<div class="card '+(now?'cardNow':'cardNext')+'"><div class="cardHeadRow"><h3>'+title+
-      '<span class="tag '+(now?'tagNow':'tagNext')+'">'+(now?'Aktuell':'Folgemonat')+'</span></h3>'+
-      '<button class="miniBtn ghost" data-act="add" data-p="ccCalc.'+side+'">＋ Posten</button></div>'+
+      '<span class="tag '+(now?'tagNow':'tagNext')+'">'+(now?'Aktuell':'Folgemonat')+'</span></h3></div>'+
+      '<div class="cardActions"><button class="miniBtn ghost" data-act="add" data-p="ccCalc.'+side+'">＋ Posten</button></div>'+
       '<table class="ledger"><tbody>';
     (cc[side]||[]).forEach((i,ix)=>{
       h+='<tr><td class="labCol">'+inp('ccCalc.'+side+'.'+ix+'.label',i.label,{lab:1,kind:'text'})+'</td>'+
@@ -1050,7 +1052,19 @@ document.addEventListener('change',async e=>{
   e.target.value='';
 });
 if('serviceWorker' in navigator){
-  window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(reg=>{
+      reg.update().catch(()=>{});
+      reg.addEventListener('updatefound',()=>{
+        const nw=reg.installing;
+        // Nur bei einem echten Update neu laden, nicht bei der allerersten Installation
+        if(!nw||!navigator.serviceWorker.controller) return;
+        nw.addEventListener('statechange',()=>{
+          if(nw.state==='activated') location.reload();
+        });
+      });
+    }).catch(()=>{});
+  });
 }
 </script>
 </body>
