@@ -297,11 +297,11 @@ const configured=FIREBASE_CONFIG.apiKey && !FIREBASE_CONFIG.apiKey.startsWith("H
 const MONTHS=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
 const GROUP_NAMES=['Fixe Ausgaben','Sparen & Investieren','Rechnungen & Variables'];
 let db=null,auth=null,uid=null;
-let settings={currency:'CHF',lohnkontoZiel:4000,notgroschenZiel:30000,rules:[],fire:{items:[],entnahmerate:0.026,vermoegen:1900000}};
+let settings={currency:'CHF',lohnkontoZiel:4000,notgroschenZiel:30000,rules:[],fire:{items:[],entnahmerate:0.026,vermoegen:1900000},templates:{monat:[],fixkosten:[]}};
 let years={};            // {'2026': {...}}
 let year=String(new Date().getFullYear());
 let dirty={};            // zu speichernde Docs
-let chartNW=null, chartVergleich=null, chartProjection=null;
+let chartNW=null, chartVergleich=null, chartProjection=null, chartDepot=null;
 
 const fmt=n=>(n==null||isNaN(n))?'–':Number(n).toLocaleString('de-CH',{minimumFractionDigits:2,maximumFractionDigits:2});
 const chf=n=>fmt(n)+' Fr.';
@@ -362,6 +362,13 @@ async function loadAll(){
   if(ys.length && !years[year]) year=ys[ys.length-1];
   renderYear();
 }
+function checkMonthReminder(){
+  if(!settings.notifyEnabled||typeof Notification==='undefined'||Notification.permission!=='granted') return;
+  const key=new Date().toISOString().slice(0,7); // "YYYY-MM"
+  if(settings.lastNotifiedMonth===key) return;
+  settings.lastNotifiedMonth=key; save('settings');
+  try{ new Notification('Lohnkalkulation',{body:'Neuer Monat – vergiss nicht, deine Zahlen einzutragen.',icon:'icon-192.png'}); }catch(e){}
+}
 
 /* ---------- Auth ---------- */
 if(configured){
@@ -370,7 +377,7 @@ if(configured){
   db.enablePersistence({synchronizeTabs:true}).catch(()=>{});
   auth.onAuthStateChanged(async u=>{
     if(u){ uid=u.uid; $('authView').classList.add('hidden');
-      $('appView').classList.remove('hidden'); await loadAll(); }
+      $('appView').classList.remove('hidden'); await loadAll(); checkMonthReminder(); }
     else { uid=null; $('appView').classList.add('hidden');
       $('authView').classList.remove('hidden'); }
   });
@@ -482,6 +489,18 @@ function reorderBtns(path,ix,len){
     '<button class="rowDel" data-act="moveDown" data-p="'+path+'" data-i="'+ix+'" '+(ix===len-1?'disabled':'')+'>↓</button>'+
     '<button class="rowDel" data-act="del" data-p="'+path+'" data-i="'+ix+'">✕</button></span>';
 }
+// Schnellauswahl für wiederkehrende Buchungsvorlagen (settings.templates.<pool>)
+function tplPicker(targetPath,pool,uid){
+  const list=(settings.templates||{})[pool]||[];
+  if(!list.length) return '';
+  const selId='tplSel_'+uid;
+  return '<tr><td colspan="3"><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:4px 0">'+
+    '<select id="'+selId+'" class="miniInp" style="width:auto;max-width:220px;text-align:left">'+
+    list.map((t,ti)=>'<option value="'+ti+'">'+esc(t.label)+' ('+fmt(t.value)+')</option>').join('')+
+    '</select>'+
+    '<button class="miniBtn ghost" data-act="addFromTpl" data-p="'+targetPath+'" data-pool="'+pool+'" data-sel="'+selId+'">＋ aus Vorlage</button>'+
+    '</div></td></tr>';
+}
 function bar(pct,warnAt){
   const cls=pct>=100?'':(warnAt&&pct>=warnAt?'warn':'');
   return '<div class="bar '+cls+'"><i style="width:'+Math.min(100,Math.max(0,pct))+'%"></i></div>';
@@ -587,6 +606,7 @@ function sideCard(side,title){
        '<td>'+reorderBtns('calc.'+side+'.income',ix,s.income.length)+'</td></tr>';
   });
   h+='<tr><td colspan="3"><button class="miniBtn ghost" data-act="add" data-p="calc.'+side+'.income">＋ Lohn/Gutschrift</button></td></tr>';
+  h+=tplPicker('calc.'+side+'.income','monat','inc_'+side);
   h+='<tr class="sumRow"><td>Total Kapital vorhanden</td><td class="num">'+fmt(c.total)+'</td><td></td></tr>';
   (s.groups||[]).forEach((g,gi)=>{
     h+='<tr><td colspan="3" class="grpCap">'+inp('calc.'+side+'.groups.'+gi+'.name',g.name,{lab:1,kind:'text'})+'</td></tr>';
@@ -596,6 +616,7 @@ function sideCard(side,title){
          '<td>'+reorderBtns('calc.'+side+'.groups.'+gi+'.items',ix,g.items.length)+'</td></tr>';
     });
     h+='<tr><td colspan="3" style="border:none"><button class="miniBtn ghost" data-act="add" data-p="calc.'+side+'.groups.'+gi+'.items">＋ Position</button></td></tr>';
+    h+=tplPicker('calc.'+side+'.groups.'+gi+'.items','monat','grp_'+side+'_'+gi);
   });
   h+='<tr class="sumRow"><td>Summe Ausgaben</td><td class="num">'+fmt(c.aus)+'</td><td></td></tr>';
   h+='</tbody></table>';
@@ -721,6 +742,7 @@ function renderFix(){
     h+='<tr><td class="labCol">'+inp('fixkosten.items.'+ix+'.label',i.label,{lab:1,kind:'text'})+'</td>'+
       '<td>'+inp('fixkosten.items.'+ix+'.value',i.value)+'</td>'+
       '<td>'+reorderBtns('fixkosten.items',ix,fk.items.length)+'</td></tr>';});
+  h+=tplPicker('fixkosten.items','fixkosten','fix');
   h+='<tr class="sumRow"><td>Total pro Jahr</td><td class="num"><span class="dblRule">'+fmt(sum)+'</span></td><td></td></tr>';
   h+='</tbody></table>'+
     '<div class="statLine"><span>Empfohlener Übertrag/Monat (Total ÷ 12)</span><b class="num">'+fmt(sum/12)+'</b></div>'+
@@ -890,6 +912,7 @@ function renderLohn(){
 /* ================= MEHR ================= */
 function renderMehr(){
   const yy=years[year]||emptyYear();
+  if(years[year]&&!yy.depotwerte) yy.depotwerte=Array(12).fill(null);
   const fire=settings.fire||{items:[],entnahmerate:0.026};
   const fSum=(fire.items||[]).reduce((a,i)=>a+(i.value||0),0);
   const noetig=fire.entnahmerate?fSum/fire.entnahmerate:0;
@@ -903,6 +926,38 @@ function renderMehr(){
   h+='<tr class="sumRow"><td colspan="2">Total</td><td class="num">'+
     fmt((yy.investments||[]).reduce((a,i)=>a+(i.amount||0),0))+'</td><td></td></tr></tbody></table>'+
     '<button class="miniBtn ghost" data-act="addInv" style="margin-top:8px">＋ Investition</button></div>';
+  // Depot-Wertentwicklung: kumulierte Einzahlungen vs. manuell erfasster Depotwert
+  let depotEingezahlt=null, depotWerte=null;
+  {
+    const invByMonth=Array(12).fill(0);
+    (yy.investments||[]).forEach(i=>{ const d=new Date(i.date); if(!isNaN(d)) invByMonth[d.getMonth()]+=(i.amount||0); });
+    let cum=0; const eingezahlt=invByMonth.map(v=>cum=Math.round((cum+v)*100)/100);
+    const dw=yy.depotwerte||Array(12).fill(null);
+    depotEingezahlt=eingezahlt; depotWerte=dw;
+    let lastWertMi=-1; dw.forEach((w,mi)=>{ if(w!=null) lastWertMi=mi; });
+    const aktWert=lastWertMi>=0?dw[lastWertMi]:null;
+    const aktEingezahlt=eingezahlt[lastWertMi>=0?lastWertMi:11];
+    const rendite=aktWert!=null?aktWert-aktEingezahlt:null;
+    const renditePct=(aktWert!=null&&aktEingezahlt)?rendite/aktEingezahlt*100:null;
+    h+='<p class="sectionCap">Depot-Wertentwicklung '+year+'</p><div class="card">'+
+      '<div class="kb" style="margin:2px 0 10px"><div><div class="cap">Eingezahlt (bis '+(lastWertMi>=0?MONTHS[lastWertMi].slice(0,3):'Dez')+')</div>'+
+      '<div class="val num">'+fmt(aktEingezahlt)+'</div></div>'+
+      '<div><div class="cap">Aktueller Depotwert</div><div class="val num">'+(aktWert!=null?fmt(aktWert):'–')+'</div></div>'+
+      '<div><div class="cap">Rendite</div><div class="val num '+(rendite!=null&&rendite<0?'neg':'pos')+'">'+
+      (rendite!=null?fmt(rendite)+(renditePct!=null?' ('+renditePct.toFixed(1)+'%)':''):'–')+'</div></div></div>'+
+      '<div class="chartBox"><canvas id="cDepot"></canvas></div>'+
+      '<div class="scrollX"><table class="ledger"><thead><tr><th>Monat</th><th>Eingezahlt (kumuliert)</th><th>Depotwert</th><th>Rendite</th></tr></thead><tbody>';
+    MONTHS.forEach((M,mi)=>{
+      const w=dw[mi];
+      const r=w!=null?w-eingezahlt[mi]:null;
+      h+='<tr><td>'+M.slice(0,3)+'</td><td class="num">'+fmt(eingezahlt[mi])+'</td>'+
+        '<td>'+inp('depotwerte.'+mi,w??'')+'</td>'+
+        '<td class="num '+(r!=null&&r<0?'neg':r!=null?'pos':'')+'">'+(r!=null?fmt(r):'–')+'</td></tr>';
+    });
+    h+='</tbody></table></div>'+
+      '<p class="hint" style="margin-top:8px">Trag hier monatlich den aktuellen Depot-Gesamtwert ein (z. B. aus dem Broker-App). '+
+      'Die Rendite ergibt sich aus Depotwert minus den bis dahin kumulierten Einzahlungen (ohne Kursverlauf zwischen den Monaten).</p></div>';
+  }
   h+='<p class="sectionCap">FIRE-Berechnung</p><div class="card"><table class="ledger"><tbody>';
   (fire.items||[]).forEach((i,ix)=>{
     h+='<tr><td class="labCol"><div class="labEdit" contenteditable="plaintext-only" data-scope="settings" data-path="fire.items.'+ix+'.label">'+esc(i.label)+'</div></td>'+
@@ -921,6 +976,28 @@ function renderMehr(){
       (r.value?'<b class="num" style="margin-left:8px">'+fmt(r.value)+'</b>':'')+
       '<button class="rowDel" data-act="delRule" data-i="'+ix+'">✕</button></div>';});
   h+='<button class="miniBtn ghost" data-act="addRule" style="margin-top:8px">＋ Regel</button></div>';
+  h+='<p class="sectionCap">Wiederkehrende Buchungsvorlagen</p><div class="card">'+
+    '<p class="hint" style="margin-bottom:10px">Erscheinen als Schnellauswahl "＋ aus Vorlage" bei Lohn/Gutschriften, Monat-Positionen und Fixkosten.</p>';
+  [['monat','Monat (Lohn/Gutschriften &amp; Positionen)'],['fixkosten','Fixkosten (Jährliche Ausgaben)']].forEach(([pool,label])=>{
+    const list=(settings.templates||{})[pool]||[];
+    h+='<p class="hint" style="text-transform:none;font-weight:600;color:var(--ink);margin:10px 0 4px">'+label+'</p>';
+    list.forEach((t,ix)=>{
+      h+='<div class="statLine"><span style="flex:1"><div class="labEdit" contenteditable="plaintext-only" data-scope="settings" data-path="templates.'+pool+'.'+ix+'.label">'+esc(t.label)+'</div></span>'+
+        '<input data-scope="settings" data-path="templates.'+pool+'.'+ix+'.value" data-kind="num" value="'+fmtInp(t.value)+'" style="width:90px">'+
+        '<button class="rowDel" data-act="delTpl" data-pool="'+pool+'" data-i="'+ix+'">✕</button></div>';});
+    h+='<button class="miniBtn ghost" data-act="addTpl" data-pool="'+pool+'" style="margin:6px 0 4px">＋ Vorlage</button>';
+  });
+  h+='</div>';
+  h+='<p class="sectionCap">Benachrichtigungen</p><div class="card">';
+  if(typeof Notification==='undefined'){
+    h+='<p class="hint">Wird von diesem Browser nicht unterstützt.</p>';
+  }else if(Notification.permission==='denied'){
+    h+='<p class="hint">Berechtigung wurde blockiert. Aktiviere Benachrichtigungen für diese Seite in den Browser-/System-Einstellungen, um sie hier nutzen zu können.</p>';
+  }else{
+    h+='<div class="statLine"><span>Erinnerung bei neuem Monat<br><span class="hint">Zeigt beim Öffnen der App einmal pro Monat eine Erinnerung, die aktuellen Zahlen einzutragen. Funktioniert nur, wenn die App offen ist – keine echten Hintergrund-Push-Benachrichtigungen.</span></span>'+
+      '<button class="miniBtn '+(settings.notifyEnabled?'':'ghost')+'" data-act="toggleNotify">'+(settings.notifyEnabled?'Aktiviert':'Aktivieren')+'</button></div>';
+  }
+  h+='</div>';
   h+='<p class="sectionCap">Jahresvergleich</p><div class="card"><div class="chartBox"><canvas id="cVergleich"></canvas></div></div>';
   h+='<p class="sectionCap">Daten</p><div class="card">'+
     '<div class="statLine"><span>Excel-Daten importieren<br><span class="hint">seed.json vom Gerät auswählen – nicht ins Repo hochladen!</span></span><button class="miniBtn" data-act="importSeed">Importieren</button></div>'+
@@ -929,6 +1006,15 @@ function renderMehr(){
     '<div class="statLine"><span id="mailLine"></span><button class="miniBtn ghost" data-act="logout">Abmelden</button></div></div>';
   $('tabMehr').innerHTML=h;
   if(auth?.currentUser) $('mailLine').textContent=auth.currentUser.email||'Google-Konto';
+  if(chartDepot)chartDepot.destroy();
+  if(depotEingezahlt&&$('cDepot')){
+    chartDepot=new Chart($('cDepot'),{type:'line',data:{labels:MONTHS.map(m=>m.slice(0,3)),
+      datasets:[
+        {label:'Eingezahlt',data:depotEingezahlt,borderColor:'#8B8FA8',borderDash:[4,3],fill:false,tension:.2,pointRadius:0},
+        {label:'Depotwert',data:depotWerte,borderColor:'#5B5FEF',backgroundColor:'rgba(91,95,239,.14)',fill:true,tension:.25,borderWidth:2.5,spanGaps:true,pointRadius:2}
+      ]},
+      options:{plugins:{legend:{display:true,labels:{boxWidth:10,font:{size:10}}}},scales:{y:{ticks:{callback:v=>Math.round(v/1000)+"k"}}}}});
+  }
   const ys=Object.keys(years).sort();
   const ends=ys.map(y=>{const yd=years[y]; const a=(yd.accounts||[]);
     const l13Konto=yd.netto?.lohn13Konto, l13Amt=yd.netto?.lohn13Applied||0;
@@ -944,6 +1030,15 @@ async function handleAction(d){
   const yy=Y();
   switch(d.act){
     case 'add': getPath(yy,d.p).push({label:'Neu',value:0}); break;
+    case 'addFromTpl': {
+      const list=(settings.templates||{})[d.pool]||[];
+      const sel=document.getElementById(d.sel); if(!sel) return;
+      const t=list[+sel.value]; if(!t) return;
+      getPath(yy,d.p).push({label:t.label,value:t.value}); break; }
+    case 'addTpl': (settings.templates=settings.templates||{monat:[],fixkosten:[]});
+      (settings.templates[d.pool]=settings.templates[d.pool]||[]).push({label:'Neu',value:0});
+      save('settings'); renderTab(); return;
+    case 'delTpl': settings.templates[d.pool].splice(+d.i,1); save('settings'); renderTab(); return;
     case 'del': getPath(yy,d.p).splice(+d.i,1); break;
     case 'moveUp': { const arr=getPath(yy,d.p); const i=+d.i;
       if(i>0){ const t=arr[i-1]; arr[i-1]=arr[i]; arr[i]=t; } else return; break; }
@@ -1030,6 +1125,16 @@ async function handleAction(d){
       const blob=new Blob([JSON.stringify({settings,years},null,1)],{type:'application/json'});
       const a=document.createElement('a');a.href=URL.createObjectURL(blob);
       a.download='lohnkalkulation-backup.json';a.click(); return; }
+    case 'toggleNotify': {
+      if(!settings.notifyEnabled){
+        if(typeof Notification==='undefined'){ toast('Wird von diesem Browser nicht unterstützt'); return; }
+        const perm=await Notification.requestPermission();
+        if(perm!=='granted'){ toast('Berechtigung nicht erteilt'); return; }
+        settings.notifyEnabled=true; toast('Erinnerungen aktiviert');
+      }else{
+        settings.notifyEnabled=false; toast('Erinnerungen deaktiviert');
+      }
+      save('settings'); renderTab(); return; }
     case 'logout': auth.signOut(); return;
     default: return;
   }
