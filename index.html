@@ -619,10 +619,19 @@ function renderDash(){
   const projDepotGespart=projDepotAccs.reduce((a,ac)=>a+acctGespart(ac),0);
   const projOtherGespart=gespart-projDepotGespart;
   const projLabels=Array.from({length:projYears+1},(_,i)=>String(+year+i));
-  const projData=Array.from({length:projYears+1},(_,i)=>{
+  const projScenario=rate=>Array.from({length:projYears+1},(_,i)=>{
     let vd=projDepotToday, vo=projOtherToday;
-    for(let k=0;k<i;k++){ vd=vd*(1+projRendite)+projDepotGespart; vo=vo+projOtherGespart; }
+    for(let k=0;k<i;k++){ vd=vd*(1+rate)+projDepotGespart; vo=vo+projOtherGespart; }
     return Math.round(vd+vo); });
+  // Drei Szenarien statt nur einer festen Rendite - Pessimistisch/Optimistisch
+  // sind editierbar, weichen aber standardmässig ±2%-Punkte vom Realistisch-Wert ab.
+  const projRenditePess=settings.projRenditePess!=null?settings.projRenditePess:Math.max(0,projRendite-0.02);
+  const projRenditeOpt=settings.projRenditeOpt!=null?settings.projRenditeOpt:projRendite+0.02;
+  const projInflation=settings.projInflation!=null?settings.projInflation:0.02;
+  const projData=projScenario(projRendite);
+  const projDataPess=projScenario(projRenditePess);
+  const projDataOpt=projScenario(projRenditeOpt);
+  const projDataReal=projData.map((v,i)=>Math.round(v/Math.pow(1+projInflation,i)));
   let h='<div class="dashGrid">'+
     '<div class="dashCell"><div class="cap">Restguthaben Monat</div>'+
       '<div class="val num"><span class="dblRule '+(c.rest<0?'neg':'')+'">'+fmt(c.rest)+'</span></div></div>'+
@@ -654,11 +663,18 @@ function renderDash(){
     (noetig?(nw/noetig*100).toFixed(1):'–')+' %</b></div></div>';
   h+='<div class="card"><h3>Vermögens-Hochrechnung (20 Jahre)</h3>'+
     '<div class="chartBox"><canvas id="cProjection"></canvas></div>'+
-    '<div class="statLine"><span>Erwartete jährliche Rendite</span>'+
+    '<div class="statLine"><span>Pessimistisch</span>'+
+    '<b><input data-scope="settings" data-path="projRenditePess" data-kind="pct" value="'+fmtPct(projRenditePess)+'" style="width:70px"></b></div>'+
+    '<div class="statLine"><span>Realistisch</span>'+
     '<b><input data-scope="settings" data-path="projRendite" data-kind="pct" value="'+fmtPct(projRendite)+'" style="width:70px"></b></div>'+
+    '<div class="statLine"><span>Optimistisch</span>'+
+    '<b><input data-scope="settings" data-path="projRenditeOpt" data-kind="pct" value="'+fmtPct(projRenditeOpt)+'" style="width:70px"></b></div>'+
+    '<div class="statLine"><span>Angenommene Inflation<br><span class="hint">für die inflationsbereinigte Linie (Kaufkraft von heute)</span></span>'+
+    '<b><input data-scope="settings" data-path="projInflation" data-kind="pct" value="'+fmtPct(projInflation)+'" style="width:70px"></b></div>'+
     '<p class="hint" style="margin-top:4px">Ab heutigem Stand ('+fmt(nw)+'), jährlich + '+fmt(gespart)+
     ' Sparen (so wie in '+year+' voraussichtlich, inkl. Prognose &amp; 13. Lohn). '+
-    (projDepotAccs.length?'Rendite ('+fmtPct(projRendite)+' %) wirkt nur auf Depot-Konten, nicht auf die übrigen.':'Keine Konten als Depot markiert – Rendite wirkt aktuell auf nichts.')+'</p></div>';
+    (projDepotAccs.length?'Die Renditen wirken nur auf Depot-Konten, nicht auf die übrigen.':'Keine Konten als Depot markiert – die Renditen wirken aktuell auf nichts.')+
+    ' In '+(+year+projYears)+' (Realistisch): '+fmt(projData[projYears])+' nominal, '+fmt(projDataReal[projYears])+' in heutiger Kaufkraft.</p></div>';
   h+='<div class="card"><details><summary style="font-family:\'Sora\',sans-serif;font-weight:700;font-size:1.05rem;cursor:pointer">Wie wird gerechnet?</summary>'+
     '<div style="font-size:.88rem;line-height:1.6;margin-top:10px">'+
     '<p><b>Restguthaben Monat</b> = Startkapital + Löhne/Gutschriften − Summe aller drei Ausgabenblöcke (Monat-Tab, aktueller Monat).</p>'+
@@ -668,14 +684,23 @@ function renderDash(){
     '<p><b>Sparquote</b> = Gespartes ÷ Jahreslohn (optional + Bonus). Gespartes = Summe (＋ minus −) über alle Konten fürs ganze Jahr (inkl. Prognose für Monate ohne echten Wert) und 13. Lohn falls gebucht, aber <b>ohne</b> Depot-Rendite. «Zuwachs Jahresende (Prognose)» im Konten-Tab = Gespartes + Depot-Rendite. Jahreslohn editierbar oder per Button aus dem Lohn-Tab.</p>'+
     '<p><b>Notgroschen</b> = Saldo des Sparkontos (erkannt am Namen, ohne «Steuern») gegen das Ziel '+fmt(settings.notgroschenZiel||30000)+'; Balken warnt ab 80 %.</p>'+
     '<p><b>FIRE</b> = Nettowert ÷ benötigtes Vermögen; benötigt = FIRE-Jahreskosten ÷ Entnahmerate ('+(((settings.fire||{}).entnahmerate||0.026)*100).toFixed(1)+' %). FIRE-Jahreskosten = Fixkosten '+year+' (automatisch aus dem Fixkosten-Tab) + zusätzliche Positionen unter Mehr → FIRE-Berechnung.</p>'+
-    '<p><b>Vermögens-Hochrechnung</b> = heutiger Kontostand, 20 Jahre fortgeschrieben. Depot-Konten wachsen jährlich um die eingestellte Rendite plus ihren eigenen Anteil am jährlichen Sparen; alle anderen Konten (Sparkonto etc.) wachsen nur um ihren Anteil am jährlichen Sparen, ohne Rendite.</p>'+
+    '<p><b>Vermögens-Hochrechnung</b> = heutiger Kontostand, 20 Jahre fortgeschrieben, in drei Szenarien (Pessimistisch/Realistisch/Optimistisch mit je eigener Rendite). Depot-Konten wachsen jährlich um die jeweilige Rendite plus ihren eigenen Anteil am jährlichen Sparen; alle anderen Konten (Sparkonto etc.) wachsen nur um ihren Anteil am jährlichen Sparen, ohne Rendite. Die gestrichelte Linie zeigt das Realistisch-Szenario inflationsbereinigt (÷ (1+Inflation)^n), also in heutiger Kaufkraft.</p>'+
     '</div></details></div>';
   $('tabDash').innerHTML=h;
   if(chartProjection)chartProjection.destroy();
   chartProjection=new Chart($('cProjection'),{type:'line',data:{labels:projLabels,
-    datasets:[{label:'Vermögen (Hochrechnung)',data:projData,borderColor:'#5B5FEF',
-      backgroundColor:'rgba(91,95,239,.14)',fill:true,tension:.25,borderWidth:2.5,pointRadius:0}]},
-    options:{plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>Math.round(v/1000)+"k"}}}}});
+    datasets:[
+      {label:'Optimistisch',data:projDataOpt,borderColor:'#4ADE80',backgroundColor:'transparent',
+        tension:.25,borderWidth:1.75,pointRadius:0},
+      {label:'Realistisch',data:projData,borderColor:'#5B5FEF',backgroundColor:'rgba(91,95,239,.14)',
+        fill:true,tension:.25,borderWidth:2.5,pointRadius:0},
+      {label:'Pessimistisch',data:projDataPess,borderColor:'#F97066',backgroundColor:'transparent',
+        tension:.25,borderWidth:1.75,pointRadius:0},
+      {label:'Realistisch, inflationsbereinigt',data:projDataReal,borderColor:'#9295BD',
+        backgroundColor:'transparent',borderDash:[5,4],tension:.25,borderWidth:1.75,pointRadius:0}
+    ]},
+    options:{plugins:{legend:{display:true,position:'bottom',labels:{boxWidth:12,font:{size:10}}}},
+      scales:{y:{ticks:{callback:v=>Math.round(v/1000)+"k"}}}}});
 }
 
 /* ================= MONAT ================= */
