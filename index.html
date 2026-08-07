@@ -187,13 +187,17 @@ nav.tabs button.on .ico{transform:translateY(-2px)}
   margin-left:6px;opacity:0;transition:opacity .3s;box-shadow:0 0 0 3px rgba(74,222,128,.25)}
 .saveDot.on{opacity:1}
 .pill{font-size:.7rem;background:var(--primary-soft);border-radius:99px;padding:3px 10px;color:var(--on-soft);font-weight:600}
-.monthGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:8px 0}
+.fixActions{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:flex-end}
+.monthGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:8px 0;width:100%;box-sizing:border-box}
+@media(min-width:420px){.monthGrid{grid-template-columns:repeat(4,1fr)}}
 @media(min-width:640px){.monthGrid{grid-template-columns:repeat(6,1fr)}}
-.monthChip{display:flex;align-items:center;justify-content:center;gap:6px;padding:9px 6px;
+.monthChip{display:flex;flex-direction:row;align-items:center;justify-content:center;gap:5px;padding:9px 4px;
   border-radius:12px;background:var(--primary-soft);color:var(--on-soft);font-weight:600;
-  font-size:.85rem;cursor:pointer;user-select:none;transition:background .15s,color .15s}
+  font-size:.78rem;cursor:pointer;user-select:none;transition:background .15s,color .15s;
+  white-space:nowrap;overflow-wrap:normal;min-width:0}
 .monthChip.on{background:var(--primary);color:#fff}
-.monthChip input{margin:0;accent-color:#fff}
+.monthChip span{white-space:nowrap}
+.monthChip input{margin:0;accent-color:#fff;width:15px;height:15px;flex:none;-webkit-appearance:checkbox;appearance:checkbox}
 h3 input.titleInp{font-family:'Sora',sans-serif;font-weight:700;font-size:1.05rem;
   border:none;background:transparent;width:100%;padding:2px 0}
 h3 input.titleInp:focus{outline:none;border-bottom:2px solid var(--primary)}
@@ -993,8 +997,10 @@ function renderFix(){
     const open=openFixMonths.has(ix);
     h+='<tr><td class="labCol">'+inp('fixkosten.items.'+ix+'.label',i.label,{lab:1,kind:'text'})+'</td>'+
       '<td>'+inp('fixkosten.items.'+ix+'.value',i.value)+'</td>'+
-      '<td><button class="miniBtn ghost" data-act="toggleFixMonths" data-i="'+ix+'">📅 Monate</button></td>'+
-      '<td>'+reorderBtns('fixkosten.items',ix,fk.items.length)+'</td></tr>';
+      '<td colspan="2"><div class="fixActions">'+
+      '<button class="miniBtn ghost" data-act="toggleFixMonths" data-i="'+ix+'">📅 Monate</button>'+
+      reorderBtns('fixkosten.items',ix,fk.items.length)+
+      '</div></td></tr>';
     if(open){
       const flags=fixItemFlags(i);
       h+='<tr><td colspan="4"><div class="monthGrid">'+
