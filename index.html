@@ -467,6 +467,7 @@ document.addEventListener('focusout',e=>{
         settings.dayLockedAccNames=settings.dayLockedAccNames.map(n=>n===oldVal?newVal:n); save('settings');
       }
       if(settings.lohnkontoAccName===oldVal){ settings.lohnkontoAccName=newVal; save('settings'); }
+      if(openAccOptions.has(oldVal)){ openAccOptions.delete(oldVal); openAccOptions.add(newVal); }
     }
   }
   setPath(root,el.dataset.path,newVal);
@@ -812,13 +813,13 @@ function renderKonten(){
       (isDepot?'<span class="pill" title="Depot-/Investitionskonto">📈 Depot</span>':'')+
       (isLohnkonto?'<span class="pill" title="Wird mit Startkapital im Monat-Tab synchronisiert">🔗 Lohnkonto-Sync</span>':'')+
       (isDayLocked&&a!==notAcc&&!isDepot?'<span class="pill" title="Zählt aktuellen Monat erst ab Investitionstag">⏳ Tages-Sperre</span>':'');
-    const optOpen=openAccOptions.has(ai);
+    const optOpen=openAccOptions.has(a.name);
     h+='<div class="card"><div class="cardHeadRow"><h3><div class="labEdit" contenteditable="plaintext-only" data-path="accounts.'+ai+'.name" data-kind="text" style="font-family:\'Sora\',sans-serif;font-size:1.08rem">'+esc(a.name)+'</div></h3></div>'+
       (badges?'<div class="cardActions" style="margin-bottom:6px">'+badges+'</div>':'')+
       '<div class="cardActions">'+
       '<button class="rowDel" data-act="moveUp" data-p="accounts" data-i="'+ai+'" '+(ai===0?'disabled':'')+'>↑</button>'+
       '<button class="rowDel" data-act="moveDown" data-p="accounts" data-i="'+ai+'" '+(ai===accs.length-1?'disabled':'')+'>↓</button>'+
-      '<button class="miniBtn ghost" data-act="toggleAccOptions" data-i="'+ai+'">⚙️ Optionen</button>'+
+      '<button class="miniBtn ghost" data-act="toggleAccOptions" data-name="'+esc(a.name)+'">⚙️ Optionen</button>'+
       '<button class="miniBtn danger" data-act="delAcc" data-i="'+ai+'">Löschen</button></div>'+
       (optOpen?(
         '<div class="statLine"><span>Notgroschen-Konto</span>'+
@@ -1222,8 +1223,8 @@ async function handleAction(d){
       months:MONTHS.map(()=>({plus:0,minus:0})),extra:[]}); break;
     case 'delAcc': if(confirm('Konto wirklich löschen?')) yy.accounts.splice(+d.i,1); else return; break;
     case 'toggleAccOptions': {
-      const i=+d.i;
-      if(openAccOptions.has(i)) openAccOptions.delete(i); else openAccOptions.add(i);
+      const nm=d.name;
+      if(openAccOptions.has(nm)) openAccOptions.delete(nm); else openAccOptions.add(nm);
       renderTab(); return; }
     case 'markNotgroschen': {
       const acc=yy.accounts[+d.i]; if(!acc) return;
