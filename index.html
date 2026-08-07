@@ -702,6 +702,14 @@ function depotEingezahltSeries(targetYear){
     const acc=(ty?.accounts||[]).find(a=>a.name===name);
     if(acc) (acc.months||[]).forEach((m,mi)=>invByMonth[mi]+=(m.plus||0)-(m.minus||0));
   });
+  // Regelmässige Transfers/Investitionen passieren erst um einen bestimmten Tag
+  // im Monat (z.B. 26.) - vor diesem Tag ist der laufende Monat im Depotwert
+  // noch nicht angekommen, darf also auch bei "Eingezahlt" noch nicht mitzählen.
+  const now=new Date();
+  if(String(targetYear)===String(now.getFullYear())){
+    const transferDay=settings.depotTransferDay||26;
+    if(now.getDate()<transferDay) invByMonth[now.getMonth()]=0;
+  }
   let cum=base; return invByMonth.map(v=>cum=Math.round((cum+v)*100)/100);
 }
 // Saldo eines Kontos am Ende von Monat mi (0-11), inkl. 13. Monatslohn ab Dezember
@@ -991,6 +999,9 @@ function renderMehr(){
       const renditePct=(aktWert!=null&&aktEingezahlt)?rendite/aktEingezahlt*100:null;
       h+='<p class="sectionCap">Depot-Wertentwicklung '+year+'</p><div class="card">'+
         '<p class="hint" style="margin-bottom:8px">Depot-Konten: '+depotAccs.map(a=>esc(a.name)).join(', ')+'</p>'+
+        '<div class="statLine"><span>Regelmässiger Investitionstag im Monat<br>'+
+        '<span class="hint">Vor diesem Tag zählt der laufende Monat noch nicht als „eingezahlt“, da der Transfer erst dann passiert.</span></span>'+
+        '<b><input data-scope="settings" data-path="depotTransferDay" data-kind="num" value="'+fmtInp(settings.depotTransferDay||26)+'" style="width:60px"></b></div>'+
         '<div class="kb" style="margin:2px 0 10px"><div><div class="cap">Eingezahlt (bis '+(lastWertMi>=0?MONTHS[lastWertMi].slice(0,3):'Dez')+')</div>'+
         '<div class="val num">'+fmt(aktEingezahlt)+'</div></div>'+
         '<div><div class="cap">Aktueller Depotwert</div><div class="val num">'+(aktWert!=null?fmt(aktWert):'–')+'</div></div>'+
