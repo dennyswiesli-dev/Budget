@@ -416,6 +416,7 @@ $('btnLogout').onclick=()=>auth.signOut();
 $('yPrev').onclick=()=>{year=String(+year-1);renderYear();};
 $('yNext').onclick=()=>{year=String(+year+1);renderYear();};
 let activeTab='tabDash';
+let openAccOptions=new Set(); // rein lokaler UI-Zustand (nicht gespeichert): welche Konto-Optionsmenüs offen sind
 document.querySelectorAll('nav.tabs button').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('nav.tabs button').forEach(x=>x.classList.remove('on'));
   b.classList.add('on'); activeTab=b.dataset.tab;
@@ -806,20 +807,28 @@ function renderKonten(){
     const isDepot=depotAccs.includes(a);
     const isDayLocked=(settings.dayLockedAccNames||[]).includes(a.name);
     const isLohnkonto=settings.lohnkontoAccName===a.name;
+    const badges=(a===notAcc?'<span class="pill" title="Notgroschen-Konto">★ Notgroschen</span>':'')+
+      (isDepot?'<span class="pill" title="Depot-/Investitionskonto">📈 Depot</span>':'')+
+      (isLohnkonto?'<span class="pill" title="Wird mit Startkapital im Monat-Tab synchronisiert">🔗 Lohnkonto-Sync</span>':'')+
+      (isDayLocked&&a!==notAcc&&!isDepot?'<span class="pill" title="Zählt aktuellen Monat erst ab Investitionstag">⏳ Tages-Sperre</span>':'');
+    const optOpen=openAccOptions.has(ai);
     h+='<div class="card"><div class="cardHeadRow"><h3><div class="labEdit" contenteditable="plaintext-only" data-path="accounts.'+ai+'.name" data-kind="text" style="font-family:\'Sora\',sans-serif;font-size:1.08rem">'+esc(a.name)+'</div></h3></div>'+
+      (badges?'<div class="cardActions" style="margin-bottom:6px">'+badges+'</div>':'')+
       '<div class="cardActions">'+
-      (a===notAcc?'<span class="pill" title="Notgroschen-Konto (Tages-Sperre aktiv)">★ Notgroschen</span>':
-        '<button class="miniBtn ghost" data-act="markNotgroschen" data-i="'+ai+'">Als Notgroschen markieren</button>')+
-      (isDepot?'<span class="pill" title="Depot-/Investitionskonto">📈 Depot</span>'+
-        '<button class="miniBtn ghost" data-act="unmarkDepot" data-i="'+ai+'">Depot entfernen</button>':
-        '<button class="miniBtn ghost" data-act="markDepot" data-i="'+ai+'">Als Depot markieren</button>')+
-      (isLohnkonto?'<span class="pill" title="Wird mit Startkapital im Monat-Tab synchronisiert">🔗 Lohnkonto-Sync</span>'+
-        '<button class="miniBtn ghost" data-act="unmarkLohnkonto" data-i="'+ai+'">Sync entfernen</button>':
-        '<button class="miniBtn ghost" data-act="markLohnkonto" data-i="'+ai+'">Mit Monat-Startkapital syncen</button>')+
-      (a===notAcc||isDepot?'':(isDayLocked?'<span class="pill" title="Zählt aktuellen Monat erst ab Investitionstag">⏳ Tages-Sperre</span>'+
-        '<button class="miniBtn ghost" data-act="unmarkDayLock" data-i="'+ai+'">Tages-Sperre entfernen</button>':
-        '<button class="miniBtn ghost" data-act="markDayLock" data-i="'+ai+'">Tages-Sperre aktivieren</button>'))+
+      '<button class="rowDel" data-act="moveUp" data-p="accounts" data-i="'+ai+'" '+(ai===0?'disabled':'')+'>↑</button>'+
+      '<button class="rowDel" data-act="moveDown" data-p="accounts" data-i="'+ai+'" '+(ai===accs.length-1?'disabled':'')+'>↓</button>'+
+      '<button class="miniBtn ghost" data-act="toggleAccOptions" data-i="'+ai+'">⚙️ Optionen</button>'+
       '<button class="miniBtn danger" data-act="delAcc" data-i="'+ai+'">Löschen</button></div>'+
+      (optOpen?(
+        '<div class="statLine"><span>Notgroschen-Konto</span>'+
+        (a===notAcc?'<button class="miniBtn" data-act="unmarkNotgroschen" data-i="'+ai+'">Aktiv ✓</button>':'<button class="miniBtn ghost" data-act="markNotgroschen" data-i="'+ai+'">Aktivieren</button>')+'</div>'+
+        '<div class="statLine"><span>Depot-/Investitionskonto</span>'+
+        (isDepot?'<button class="miniBtn" data-act="unmarkDepot" data-i="'+ai+'">Aktiv ✓</button>':'<button class="miniBtn ghost" data-act="markDepot" data-i="'+ai+'">Aktivieren</button>')+'</div>'+
+        '<div class="statLine"><span>Tages-Sperre<br><span class="hint">Zu-/Abgänge im laufenden Monat zählen erst ab dem Investitionstag (siehe Mehr → Depot-Wertentwicklung)</span></span>'+
+        (isDayLocked?'<button class="miniBtn" data-act="unmarkDayLock" data-i="'+ai+'">Aktiv ✓</button>':'<button class="miniBtn ghost" data-act="markDayLock" data-i="'+ai+'">Aktivieren</button>')+'</div>'+
+        '<div class="statLine"><span>Lohnkonto-Sync<br><span class="hint">⚠️ Überschreibt den Saldo des aktuellen Monats laufend mit dem Startkapital aus dem Monat-Tab</span></span>'+
+        (isLohnkonto?'<button class="miniBtn" data-act="unmarkLohnkonto" data-i="'+ai+'">Aktiv ✓</button>':'<button class="miniBtn ghost" data-act="markLohnkonto" data-i="'+ai+'">Aktivieren</button>')+'</div>'
+      ):'')+
       '<div class="statLine"><span>Netto gespart im Jahr (inkl. Prognose &amp; 13. Lohn falls gebucht)</span><b class="num '+(netto<0?'neg':'pos')+'">'+fmt(netto)+'</b></div>'+
       '<div class="statLine"><span>Prognose für alle Monate setzen<br><span class="hint">zum Durchspielen möglicher Szenarien</span></span>'+
       '<span style="display:flex;gap:6px;align-items:center"><input id="progAll_'+ai+'" class="miniInp" value="" placeholder="0.00">'+
@@ -1200,10 +1209,18 @@ async function handleAction(d){
     case 'addAcc': yy.accounts.push({name:'Neues Konto',start:0,
       months:MONTHS.map(()=>({plus:0,minus:0})),extra:[]}); break;
     case 'delAcc': if(confirm('Konto wirklich löschen?')) yy.accounts.splice(+d.i,1); else return; break;
+    case 'toggleAccOptions': {
+      const i=+d.i;
+      if(openAccOptions.has(i)) openAccOptions.delete(i); else openAccOptions.add(i);
+      renderTab(); return; }
     case 'markNotgroschen': {
       const acc=yy.accounts[+d.i]; if(!acc) return;
       settings.notgroschenAccName=acc.name; save('settings');
       toast('„'+acc.name+'“ als Notgroschen-Konto markiert'); renderTab(); return; }
+    case 'unmarkNotgroschen': {
+      const acc=yy.accounts[+d.i]; if(!acc) return;
+      settings.notgroschenAccName=null; save('settings');
+      toast('„'+acc.name+'“ ist kein Notgroschen-Konto mehr'); renderTab(); return; }
     case 'markDepot': {
       const acc=yy.accounts[+d.i]; if(!acc) return;
       settings.depotAccNames=settings.depotAccNames||[];
@@ -1224,6 +1241,9 @@ async function handleAction(d){
       save('settings'); toast('„'+acc.name+'“: Tages-Sperre entfernt'); renderTab(); return; }
     case 'markLohnkonto': {
       const acc=yy.accounts[+d.i]; if(!acc) return;
+      if(!confirm('„'+acc.name+'“ mit dem Monat-Startkapital synchronisieren?\n\n'+
+        'Der Saldo dieses Kontos im aktuellen Monat wird ab jetzt automatisch mit dem Wert '+
+        '„Startkapital Zahlungskonto“ aus dem Monat-Tab überschrieben. Fortfahren?')) return;
       settings.lohnkontoAccName=acc.name;
       save('settings'); toast('„'+acc.name+'“ mit Monat-Startkapital synchronisiert'); renderTab(); return; }
     case 'unmarkLohnkonto': {
