@@ -459,6 +459,9 @@ document.addEventListener('focusout',e=>{
     if(oldVal!==newVal){
       if(root.netto?.lohn13Konto===oldVal) root.netto.lohn13Konto=newVal;
       if(settings.notgroschenAccName===oldVal){ settings.notgroschenAccName=newVal; save('settings'); }
+      if(settings.depotAccNames?.includes(oldVal)){
+        settings.depotAccNames=settings.depotAccNames.map(n=>n===oldVal?newVal:n); save('settings');
+      }
     }
   }
   setPath(root,el.dataset.path,newVal);
@@ -667,6 +670,13 @@ function findNotAcc(accs){
   }
   return accs.find(a=>/sparkonto/i.test(a.name)&&!/steuer/i.test(a.name));
 }
+// Depot-/Investitionskonten: eine oder mehrere explizite Markierungen
+// (settings.depotAccNames), da Investitionen oft über mehrere Konten
+// (z.B. Broker + Säule 3a) verteilt sind.
+function findDepotAccs(accs){
+  const names=settings.depotAccNames||[];
+  return accs.filter(a=>names.includes(a.name));
+}
 // Saldo eines Kontos am Ende von Monat mi (0-11), inkl. 13. Monatslohn ab Dezember
 function acctSaldoAt(a,mi){ const s=accountSaldi(a)[mi]; return mi===11?s+lohn13For(a):s; }
 function renderKonten(){
@@ -683,6 +693,7 @@ function renderKonten(){
     'Sobald du den echten Betrag einträgst, ersetzt er die Prognose automatisch.</p></div>';
   const notAcc=findNotAcc(accs);
   const notZiel=settings.notgroschenZiel||30000;
+  const depotAccs=findDepotAccs(accs);
   accs.forEach((a,ai)=>{
     const l13=lohn13For(a);
     const saldi=accountSaldi(a);
@@ -690,10 +701,14 @@ function renderKonten(){
     const plusEffSum=(a.months||[]).reduce((x,m)=>x+((m.plus||0)||(m.prognose!=null?m.prognose:0)),0);
     const minusSum=(a.months||[]).reduce((x,m)=>x+(m.minus||0),0);
     const netto=plusEffSum-minusSum+l13;
+    const isDepot=depotAccs.includes(a);
     h+='<div class="card"><div class="cardHeadRow"><h3><div class="labEdit" contenteditable="plaintext-only" data-path="accounts.'+ai+'.name" data-kind="text" style="font-family:\'Sora\',sans-serif;font-size:1.08rem">'+esc(a.name)+'</div></h3></div>'+
       '<div class="cardActions">'+
       (a===notAcc?'<span class="pill" title="Notgroschen-Konto">★ Notgroschen</span>':
         '<button class="miniBtn ghost" data-act="markNotgroschen" data-i="'+ai+'">Als Notgroschen markieren</button>')+
+      (isDepot?'<span class="pill" title="Depot-/Investitionskonto">📈 Depot</span>'+
+        '<button class="miniBtn ghost" data-act="unmarkDepot" data-i="'+ai+'">Depot entfernen</button>':
+        '<button class="miniBtn ghost" data-act="markDepot" data-i="'+ai+'">Als Depot markieren</button>')+
       '<button class="miniBtn danger" data-act="delAcc" data-i="'+ai+'">Löschen</button></div>'+
       '<div class="statLine"><span>Netto gespart im Jahr (inkl. Prognose &amp; 13. Lohn falls gebucht)</span><b class="num '+(netto<0?'neg':'pos')+'">'+fmt(netto)+'</b></div>'+
       '<div class="statLine"><span>Prognose für alle Monate setzen<br><span class="hint">zum Durchspielen möglicher Szenarien</span></span>'+
@@ -918,7 +933,8 @@ function renderMehr(){
   const fire=settings.fire||{items:[],entnahmerate:0.026};
   const fSum=(fire.items||[]).reduce((a,i)=>a+(i.value||0),0);
   const noetig=fire.entnahmerate?fSum/fire.entnahmerate:0;
-  let h='<p class="sectionCap">Investitionen '+year+'</p><div class="card">'+
+  let h='<p class="sectionCap">Grössere Anschaffungen '+year+'</p><div class="card">'+
+    '<p class="hint" style="margin-bottom:8px">Einmalige grössere Käufe (Möbel, Geräte etc.) – für laufende Aktien-/Fondsinvestitionen siehe „Depot-Wertentwicklung“ unten, basierend auf deinen als Depot markierten Konten.</p>'+
     '<table class="ledger"><tbody>';
   (yy.investments||[]).forEach((i,ix)=>{
     h+='<tr><td class="dateCol">'+inp('investments.'+ix+'.date',i.date,{lab:1,kind:'text'})+'</td>'+
@@ -928,37 +944,46 @@ function renderMehr(){
   h+='<tr class="sumRow"><td colspan="2">Total</td><td class="num">'+
     fmt((yy.investments||[]).reduce((a,i)=>a+(i.amount||0),0))+'</td><td></td></tr></tbody></table>'+
     '<button class="miniBtn ghost" data-act="addInv" style="margin-top:8px">＋ Investition</button></div>';
-  // Depot-Wertentwicklung: kumulierte Einzahlungen vs. manuell erfasster Depotwert
+  // Depot-Wertentwicklung: kumulierte Netto-Einzahlungen der als Depot markierten
+  // Konten (Konten-Tab) vs. manuell erfasster tatsächlicher Depotwert.
   let depotEingezahlt=null, depotWerte=null;
   {
-    const invByMonth=Array(12).fill(0);
-    (yy.investments||[]).forEach(i=>{ const d=new Date(i.date); if(!isNaN(d)) invByMonth[d.getMonth()]+=(i.amount||0); });
-    let cum=0; const eingezahlt=invByMonth.map(v=>cum=Math.round((cum+v)*100)/100);
-    const dw=yy.depotwerte||Array(12).fill(null);
-    depotEingezahlt=eingezahlt; depotWerte=dw;
-    let lastWertMi=-1; dw.forEach((w,mi)=>{ if(w!=null) lastWertMi=mi; });
-    const aktWert=lastWertMi>=0?dw[lastWertMi]:null;
-    const aktEingezahlt=eingezahlt[lastWertMi>=0?lastWertMi:11];
-    const rendite=aktWert!=null?aktWert-aktEingezahlt:null;
-    const renditePct=(aktWert!=null&&aktEingezahlt)?rendite/aktEingezahlt*100:null;
-    h+='<p class="sectionCap">Depot-Wertentwicklung '+year+'</p><div class="card">'+
-      '<div class="kb" style="margin:2px 0 10px"><div><div class="cap">Eingezahlt (bis '+(lastWertMi>=0?MONTHS[lastWertMi].slice(0,3):'Dez')+')</div>'+
-      '<div class="val num">'+fmt(aktEingezahlt)+'</div></div>'+
-      '<div><div class="cap">Aktueller Depotwert</div><div class="val num">'+(aktWert!=null?fmt(aktWert):'–')+'</div></div>'+
-      '<div><div class="cap">Rendite</div><div class="val num '+(rendite!=null&&rendite<0?'neg':'pos')+'">'+
-      (rendite!=null?fmt(rendite)+(renditePct!=null?' ('+renditePct.toFixed(1)+'%)':''):'–')+'</div></div></div>'+
-      '<div class="chartBox"><canvas id="cDepot"></canvas></div>'+
-      '<div class="scrollX"><table class="ledger"><thead><tr><th>Monat</th><th>Eingezahlt (kumuliert)</th><th>Depotwert</th><th>Rendite</th></tr></thead><tbody>';
-    MONTHS.forEach((M,mi)=>{
-      const w=dw[mi];
-      const r=w!=null?w-eingezahlt[mi]:null;
-      h+='<tr><td>'+M.slice(0,3)+'</td><td class="num">'+fmt(eingezahlt[mi])+'</td>'+
-        '<td>'+inp('depotwerte.'+mi,w??'',{placeholder:'eintragen'})+'</td>'+
-        '<td class="num '+(r!=null&&r<0?'neg':r!=null?'pos':'')+'">'+(r!=null?fmt(r):'–')+'</td></tr>';
-    });
-    h+='</tbody></table></div>'+
-      '<p class="hint" style="margin-top:8px">Trag hier monatlich den aktuellen Depot-Gesamtwert ein (z. B. aus dem Broker-App). '+
-      'Die Rendite ergibt sich aus Depotwert minus den bis dahin kumulierten Einzahlungen (ohne Kursverlauf zwischen den Monaten).</p></div>';
+    const depotAccs=findDepotAccs(yy.accounts||[]);
+    if(!depotAccs.length){
+      h+='<p class="sectionCap">Depot-Wertentwicklung '+year+'</p><div class="card">'+
+        '<p class="hint">Noch kein Depot-Konto markiert. Geh zum <b>Konten</b>-Tab und markiere dort dein(e) Investitionskonto(en) '+
+        '(z. B. Broker, Säule 3a) mit „Als Depot markieren“, dann erscheint hier die Auswertung.</p></div>';
+    }else{
+      const invByMonth=Array(12).fill(0);
+      depotAccs.forEach(a=>(a.months||[]).forEach((m,mi)=>invByMonth[mi]+=(m.plus||0)-(m.minus||0)));
+      let cum=0; const eingezahlt=invByMonth.map(v=>cum=Math.round((cum+v)*100)/100);
+      const dw=yy.depotwerte||Array(12).fill(null);
+      depotEingezahlt=eingezahlt; depotWerte=dw;
+      let lastWertMi=-1; dw.forEach((w,mi)=>{ if(w!=null) lastWertMi=mi; });
+      const aktWert=lastWertMi>=0?dw[lastWertMi]:null;
+      const aktEingezahlt=eingezahlt[lastWertMi>=0?lastWertMi:11];
+      const rendite=aktWert!=null?aktWert-aktEingezahlt:null;
+      const renditePct=(aktWert!=null&&aktEingezahlt)?rendite/aktEingezahlt*100:null;
+      h+='<p class="sectionCap">Depot-Wertentwicklung '+year+'</p><div class="card">'+
+        '<p class="hint" style="margin-bottom:8px">Depot-Konten: '+depotAccs.map(a=>esc(a.name)).join(', ')+'</p>'+
+        '<div class="kb" style="margin:2px 0 10px"><div><div class="cap">Eingezahlt (bis '+(lastWertMi>=0?MONTHS[lastWertMi].slice(0,3):'Dez')+')</div>'+
+        '<div class="val num">'+fmt(aktEingezahlt)+'</div></div>'+
+        '<div><div class="cap">Aktueller Depotwert</div><div class="val num">'+(aktWert!=null?fmt(aktWert):'–')+'</div></div>'+
+        '<div><div class="cap">Rendite</div><div class="val num '+(rendite!=null&&rendite<0?'neg':'pos')+'">'+
+        (rendite!=null?fmt(rendite)+(renditePct!=null?' ('+renditePct.toFixed(1)+'%)':''):'–')+'</div></div></div>'+
+        '<div class="chartBox"><canvas id="cDepot"></canvas></div>'+
+        '<div class="scrollX"><table class="ledger"><thead><tr><th>Monat</th><th>Eingezahlt (kumuliert)</th><th>Depotwert</th><th>Rendite</th></tr></thead><tbody>';
+      MONTHS.forEach((M,mi)=>{
+        const w=dw[mi];
+        const r=w!=null?w-eingezahlt[mi]:null;
+        h+='<tr><td>'+M.slice(0,3)+'</td><td class="num">'+fmt(eingezahlt[mi])+'</td>'+
+          '<td>'+inp('depotwerte.'+mi,w??'',{placeholder:'eintragen'})+'</td>'+
+          '<td class="num '+(r!=null&&r<0?'neg':r!=null?'pos':'')+'">'+(r!=null?fmt(r):'–')+'</td></tr>';
+      });
+      h+='</tbody></table></div>'+
+        '<p class="hint" style="margin-top:8px">Eingezahlt = Summe der ＋/− Bewegungen der markierten Depot-Konten (Konten-Tab), kumuliert über das Jahr. '+
+        'Trag hier zusätzlich monatlich den tatsächlichen Depotwert ein (z. B. aus der Broker-App) – die Rendite ergibt sich aus Depotwert minus Einzahlungen.</p></div>';
+    }
   }
   h+='<p class="sectionCap">FIRE-Berechnung</p><div class="card"><table class="ledger"><tbody>';
   (fire.items||[]).forEach((i,ix)=>{
@@ -1068,6 +1093,15 @@ async function handleAction(d){
       const acc=yy.accounts[+d.i]; if(!acc) return;
       settings.notgroschenAccName=acc.name; save('settings');
       toast('„'+acc.name+'“ als Notgroschen-Konto markiert'); renderTab(); return; }
+    case 'markDepot': {
+      const acc=yy.accounts[+d.i]; if(!acc) return;
+      settings.depotAccNames=settings.depotAccNames||[];
+      if(!settings.depotAccNames.includes(acc.name)) settings.depotAccNames.push(acc.name);
+      save('settings'); toast('„'+acc.name+'“ als Depot-Konto markiert'); renderTab(); return; }
+    case 'unmarkDepot': {
+      const acc=yy.accounts[+d.i]; if(!acc||!settings.depotAccNames) return;
+      settings.depotAccNames=settings.depotAccNames.filter(n=>n!==acc.name);
+      save('settings'); toast('„'+acc.name+'“ ist kein Depot-Konto mehr'); renderTab(); return; }
     case 'addAbzug': (yy.netto.items=yy.netto.items||[]).push({label:'Neu',rate:0}); break;
     case 'nettoZuLohn': {
       const netto=nettoCalc(yy.netto).n12;
