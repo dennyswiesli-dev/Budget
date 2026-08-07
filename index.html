@@ -587,15 +587,16 @@ function renderDash(){
   const rendite=depotRendite(yy);
   const nw=accs.reduce((a,ac)=>a+acctSaldoAt(ac,nowMi),0)+rendite;
   const nwStart=accs.reduce((a,ac)=>a+(ac.start||0),0);
-  const gespart=accs.reduce((a,ac)=>{
+  const acctGespart=ac=>{
     const dayLocked=isDayLockedName(ac.name);
-    return a+(ac.months||[]).reduce((x,m,mi)=>{
+    return (ac.months||[]).reduce((x,m,mi)=>{
       const pending=dayLocked&&monthIsCurrentPending(mi);
       const plusEff=pending?0:((m.plus||0)||(m.prognose!=null?m.prognose:0));
       const minusEff=pending?0:(m.minus||0);
       return x+plusEff-minusEff;
     },0)+lohn13For(ac);
-  },0);
+  };
+  const gespart=accs.reduce((a,ac)=>a+acctGespart(ac),0);
   const lohnJahr=yy.lohnJahr||Math.round(c.inc*13);
   const bonus=yy.bonus||0, bonusIncl=!!yy.bonusIncl;
   const lohnEffektiv=lohnJahr+(bonusIncl?bonus:0);
@@ -609,9 +610,19 @@ function renderDash(){
   const yearEndNW=accs.reduce((a,ac)=>a+acctSaldoAt(ac,11),0)+rendite;
   const projRendite=settings.projRendite||0;
   const projYears=20;
+  // Rendite wird nur auf die als Depot markierten Konten angewendet (Aktien/Fonds);
+  // Sparkonten etc. wachsen in der Hochrechnung nur durch die eingezahlten Beträge,
+  // da dort real kaum Zins/Rendite anfällt.
+  const projDepotAccs=findDepotAccs(accs);
+  const projDepotYearEnd=projDepotAccs.reduce((a,ac)=>a+acctSaldoAt(ac,11),0)+rendite;
+  const projOtherYearEnd=yearEndNW-projDepotYearEnd;
+  const projDepotGespart=projDepotAccs.reduce((a,ac)=>a+acctGespart(ac),0);
+  const projOtherGespart=gespart-projDepotGespart;
   const projLabels=Array.from({length:projYears+1},(_,i)=>String(+year+i));
   const projData=Array.from({length:projYears+1},(_,i)=>{
-    let v=yearEndNW; for(let k=0;k<i;k++) v=v*(1+projRendite)+gespart; return Math.round(v); });
+    let vd=projDepotYearEnd, vo=projOtherYearEnd;
+    for(let k=0;k<i;k++){ vd=vd*(1+projRendite)+projDepotGespart; vo=vo+projOtherGespart; }
+    return Math.round(vd+vo); });
   let h='<div class="dashGrid">'+
     '<div class="dashCell"><div class="cap">Restguthaben Monat</div>'+
       '<div class="val num"><span class="dblRule '+(c.rest<0?'neg':'')+'">'+fmt(c.rest)+'</span></div></div>'+
@@ -646,7 +657,8 @@ function renderDash(){
     '<div class="statLine"><span>Erwartete jährliche Rendite</span>'+
     '<b><input data-scope="settings" data-path="projRendite" data-kind="pct" value="'+fmtPct(projRendite)+'" style="width:70px"></b></div>'+
     '<p class="hint" style="margin-top:4px">Ab Jahresendstand '+year+' ('+fmt(yearEndNW)+'), jährlich + '+fmt(gespart)+
-    ' Sparen (so wie in '+year+' voraussichtlich, inkl. Prognose &amp; 13. Lohn)'+(projRendite?' und '+fmtPct(projRendite)+' % Rendite auf das bestehende Vermögen':'')+'.</p></div>';
+    ' Sparen (so wie in '+year+' voraussichtlich, inkl. Prognose &amp; 13. Lohn).'+
+    (projDepotAccs.length?' Die Rendite ('+fmtPct(projRendite)+' %) wird nur auf die Depot-Konten ('+projDepotAccs.map(a=>esc(a.name)).join(', ')+', aktuell '+fmt(projDepotYearEnd)+') angewendet; die übrigen Konten ('+fmt(projOtherYearEnd)+') wachsen nur durch die Einzahlungen.':' Keine Konten sind als Depot markiert, daher wirkt die Rendite hier auf nichts – markiere Depot-Konten im Konten-Tab, damit sie separat verzinst werden.')+'</p></div>';
   h+='<div class="card"><details><summary style="font-family:\'Sora\',sans-serif;font-weight:700;font-size:1.05rem;cursor:pointer">Wie wird gerechnet?</summary>'+
     '<div style="font-size:.88rem;line-height:1.6;margin-top:10px">'+
     '<p><b>Restguthaben Monat</b> = Startkapital + Löhne/Gutschriften − Summe aller drei Ausgabenblöcke (Monat-Tab, aktueller Monat).</p>'+
@@ -656,7 +668,7 @@ function renderDash(){
     '<p><b>Sparquote</b> = Gespartes ÷ Jahreslohn (optional + Bonus). Gespartes = Summe (＋ minus −) über alle Konten fürs ganze Jahr (inkl. Prognose für Monate ohne echten Wert) und 13. Lohn falls gebucht, aber <b>ohne</b> Depot-Rendite. «Zuwachs Jahresende (Prognose)» im Konten-Tab = Gespartes + Depot-Rendite. Jahreslohn editierbar oder per Button aus dem Lohn-Tab.</p>'+
     '<p><b>Notgroschen</b> = Saldo des Sparkontos (erkannt am Namen, ohne «Steuern») gegen das Ziel '+fmt(settings.notgroschenZiel||30000)+'; Balken warnt ab 80 %.</p>'+
     '<p><b>FIRE</b> = Nettowert ÷ benötigtes Vermögen; benötigt = FIRE-Jahreskosten ÷ Entnahmerate ('+(((settings.fire||{}).entnahmerate||0.026)*100).toFixed(1)+' %). FIRE-Jahreskosten = Fixkosten '+year+' (automatisch aus dem Fixkosten-Tab) + zusätzliche Positionen unter Mehr → FIRE-Berechnung.</p>'+
-    '<p><b>Vermögens-Hochrechnung</b> = Jahresendstand des aktuellen Jahres + n × jährliches Sparen (inkl. Prognose &amp; 13. Lohn), linear für 20 Jahre – ohne Anlagerendite.</p>'+
+    '<p><b>Vermögens-Hochrechnung</b> = Jahresendstand '+year+', 20 Jahre fortgeschrieben. Depot-Konten wachsen jährlich um die eingestellte Rendite plus ihren eigenen Anteil am jährlichen Sparen; alle anderen Konten (Sparkonto etc.) wachsen nur um ihren Anteil am jährlichen Sparen, ohne Rendite.</p>'+
     '</div></details></div>';
   $('tabDash').innerHTML=h;
   if(chartProjection)chartProjection.destroy();
