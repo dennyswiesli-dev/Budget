@@ -169,6 +169,12 @@ nav.tabs button.on .ico{transform:translateY(-2px)}
   margin-left:6px;opacity:0;transition:opacity .3s;box-shadow:0 0 0 3px rgba(74,222,128,.25)}
 .saveDot.on{opacity:1}
 .pill{font-size:.7rem;background:var(--primary-soft);border-radius:99px;padding:3px 10px;color:var(--on-soft);font-weight:600}
+.monthGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:8px 0}
+.monthChip{display:flex;align-items:center;justify-content:center;gap:6px;padding:9px 6px;
+  border-radius:12px;background:var(--primary-soft);color:var(--on-soft);font-weight:600;
+  font-size:.85rem;cursor:pointer;user-select:none;transition:background .15s,color .15s}
+.monthChip.on{background:var(--primary);color:#fff}
+.monthChip input{margin:0;accent-color:#fff}
 h3 input.titleInp{font-family:'Sora',sans-serif;font-weight:700;font-size:1.05rem;
   border:none;background:transparent;width:100%;padding:2px 0}
 h3 input.titleInp:focus{outline:none;border-bottom:2px solid var(--primary)}
@@ -455,6 +461,9 @@ document.querySelectorAll('nav.tabs button').forEach(b=>b.onclick=()=>{
 });
 function renderYear(){ $('yLabel').textContent=year; renderTab(); }
 function renderTab(){
+  // Neu-Rendern ersetzt das gesamte Tab-DOM; ohne diese Rettung springt der
+  // Scrollposition beim Fokusverlust (z.B. Checkbox-Klick) auf 0 zurück.
+  const sy=window.scrollY;
   if(activeTab==='tabDash')renderDash();
   else if(activeTab==='tabMonat')renderMonat();
   else if(activeTab==='tabKonten')renderKonten();
@@ -462,6 +471,7 @@ function renderTab(){
   else if(activeTab==='tabKK')renderKK();
   else if(activeTab==='tabLohn')renderLohn();
   else renderMehr();
+  window.scrollTo(0,sy);
 }
 
 /* ---------- Editier-Helfer (data-path Binding) ---------- */
@@ -963,10 +973,11 @@ function renderFix(){
       '<td>'+reorderBtns('fixkosten.items',ix,fk.items.length)+'</td></tr>';
     if(open){
       const flags=fixItemFlags(i);
-      h+='<tr><td colspan="4"><div class="scrollX"><table class="ledger"><thead><tr>'+
-        MONTHS.map(m=>'<th>'+m.slice(0,3)+'</th>').join('')+'</tr></thead><tbody><tr>'+
-        MONTHS.map((m,mi)=>'<td style="text-align:center"><input type="checkbox" data-path="fixkosten.items.'+ix+'.flags.'+mi+'" data-kind="bool" '+(flags[mi]?'checked':'')+'></td>').join('')+
-        '</tr></tbody></table></div></td></tr>';
+      h+='<tr><td colspan="4"><div class="monthGrid">'+
+        MONTHS.map((m,mi)=>'<label class="monthChip'+(flags[mi]?' on':'')+'">'+
+          '<input type="checkbox" data-path="fixkosten.items.'+ix+'.flags.'+mi+'" data-kind="bool" '+(flags[mi]?'checked':'')+'>'+
+          '<span>'+m.slice(0,3)+'</span></label>').join('')+
+        '</div></td></tr>';
     }
   });
   h+=tplPicker('fixkosten.items','fixkosten','fix');
