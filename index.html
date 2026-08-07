@@ -327,7 +327,7 @@ const configured=FIREBASE_CONFIG.apiKey && !FIREBASE_CONFIG.apiKey.startsWith("H
 const MONTHS=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
 const GROUP_NAMES=['Fixe Ausgaben','Sparen & Investieren','Rechnungen & Variables'];
 let db=null,auth=null,uid=null;
-let settings={currency:'CHF',lohnkontoZiel:4000,notgroschenZiel:30000,rules:[],fire:{items:[],entnahmerate:0.026,vermoegen:1900000},templates:{monat:[],fixkosten:[]}};
+let settings={currency:'CHF',lohnkontoZiel:4000,notgroschenZiel:30000,rules:[],fire:{items:[],entnahmerate:0.026,vermoegen:0},templates:{monat:[],fixkosten:[]}};
 let years={};            // {'2026': {...}}
 let year=String(new Date().getFullYear());
 let dirty={};            // zu speichernde Docs
