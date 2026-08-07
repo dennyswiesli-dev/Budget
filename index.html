@@ -706,17 +706,20 @@ function monthIsCurrentPending(mi){
 function accountSaldi(a){
   const dayLocked=isDayLockedName(a.name);
   let run=a.start||0; const saldi=[]; const prog=[]; const wait=[];
+  let deferred=0; // bereits echt erfasste Werte eines gesperrten Monats, die erst im Folgemonat zählen
   (a.months||[]).forEach((m,mi)=>{
     const pending=dayLocked&&monthIsCurrentPending(mi);
+    const applyDeferred=deferred; deferred=0;
     // Tages-gesperrte Konten (Depot/Notgroschen/manuell markiert): der laufende
     // Monat zählt komplett erst ab dem Transfertag - egal ob echter Wert oder
-    // Prognose. Bei Depot wird das 1:1 durch die Depot-Rendite ausgeglichen;
-    // bei anderen Konten ist das eine bewusste, explizit angeforderte
-    // Vereinfachung ("lieber zu tief bis zum Stichtag als zu früh gezählt").
+    // Prognose. Bereits real erfasste Werte gehen dabei nicht verloren, sondern
+    // werden im Folgemonat nachgezogen (dort ist die Buchung ja definitiv erfolgt).
+    // Bei Depot wird das zusätzlich 1:1 durch die Depot-Rendite ausgeglichen.
     const plusEff=pending?0:((m.plus||0)||(m.prognose!=null?m.prognose:0));
     const minusEff=pending?0:(m.minus||0);
+    if(pending) deferred=(m.plus||0)-(m.minus||0);
     const usedProg=!pending&&!m.plus&&m.prognose!=null&&plusEff===m.prognose;
-    run=Math.round((run+plusEff-minusEff)*100)/100;
+    run=Math.round((run+applyDeferred+plusEff-minusEff)*100)/100;
     saldi.push(run); prog.push(usedProg); wait.push(pending);
   });
   // Lohnkonto-Sync: statt jeden Monat manuell ＋/− zu pflegen, wird für den
