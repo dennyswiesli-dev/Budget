@@ -807,7 +807,7 @@ function renderKonten(){
     const minusSum=(a.months||[]).reduce((x,m)=>x+(m.minus||0),0);
     const netto=plusEffSum-minusSum+l13;
     const isDepot=depotAccs.includes(a);
-    const isDayLocked=(settings.dayLockedAccNames||[]).includes(a.name);
+    const isDayLocked=isDayLockedName(a.name);
     const isLohnkonto=settings.lohnkontoAccName===a.name;
     const badges=(a===notAcc?'<span class="pill" title="Notgroschen-Konto">★ Notgroschen</span>':'')+
       (isDepot?'<span class="pill" title="Depot-/Investitionskonto">📈 Depot</span>':'')+
@@ -827,7 +827,7 @@ function renderKonten(){
         '<div class="statLine"><span>Depot-/Investitionskonto</span>'+
         (isDepot?'<button class="miniBtn" data-act="unmarkDepot" data-i="'+ai+'">Aktiv ✓</button>':'<button class="miniBtn ghost" data-act="markDepot" data-i="'+ai+'">Aktivieren</button>')+'</div>'+
         '<div class="statLine"><span>Tages-Sperre<br><span class="hint">Zu-/Abgänge im laufenden Monat zählen erst ab dem Investitionstag (siehe Mehr → Depot-Wertentwicklung)</span></span>'+
-        (isDayLocked?'<button class="miniBtn" data-act="unmarkDayLock" data-i="'+ai+'">Aktiv ✓</button>':'<button class="miniBtn ghost" data-act="markDayLock" data-i="'+ai+'">Aktivieren</button>')+'</div>'+
+        ((a===notAcc||isDepot)?'<button class="miniBtn" disabled title="Automatisch aktiv, da Notgroschen-/Depot-Konten immer der Tages-Sperre unterliegen">Automatisch aktiv</button>':(isDayLocked?'<button class="miniBtn" data-act="unmarkDayLock" data-i="'+ai+'">Aktiv ✓</button>':'<button class="miniBtn ghost" data-act="markDayLock" data-i="'+ai+'">Aktivieren</button>'))+'</div>'+
         '<div class="statLine"><span>Lohnkonto-Sync<br><span class="hint">⚠️ Überschreibt den Saldo des aktuellen Monats laufend mit dem Startkapital aus dem Monat-Tab</span></span>'+
         (isLohnkonto?'<button class="miniBtn" data-act="unmarkLohnkonto" data-i="'+ai+'">Aktiv ✓</button>':'<button class="miniBtn ghost" data-act="markLohnkonto" data-i="'+ai+'">Aktivieren</button>')+'</div>'
       ):'');
