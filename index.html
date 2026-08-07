@@ -115,6 +115,7 @@ input[data-path]{padding:6px 9px;border:1px solid var(--rule-strong);border-radi
   font-size:.87rem;transition:border-color .12s,background .12s}
 input[data-path]:hover{border-color:var(--primary)}
 input[data-path]:focus{border-color:var(--primary);background:var(--card);outline:none;box-shadow:0 0 0 3px var(--primary-soft)}
+input::placeholder,table.ledger td input::placeholder{color:var(--muted);opacity:.85;font-style:italic}
 .miniInp{padding:6px 9px;border:1px solid var(--rule-strong);border-radius:8px;width:90px;
   background:var(--bg);color:var(--ink);text-align:right;font-family:'JetBrains Mono',monospace;
   font-size:.87rem;transition:border-color .12s,background .12s}
@@ -442,7 +443,8 @@ function inp(path,val,opts={}){
     'data-path="'+path+'" data-kind="text">'+esc(val)+'</div>';
   const kind=opts.kind||'num';
   const shown=kind==='num'?fmtInp(val):kind==='pct'?fmtPct(val):(val??'');
-  return '<input data-path="'+path+'" data-kind="'+kind+'" value="'+shown+'">';
+  const ph=opts.placeholder?' placeholder="'+esc(opts.placeholder)+'"':'';
+  return '<input data-path="'+path+'" data-kind="'+kind+'"'+ph+' value="'+shown+'">';
 }
 document.addEventListener('focusout',e=>{
   const el=e.target;
@@ -951,7 +953,7 @@ function renderMehr(){
       const w=dw[mi];
       const r=w!=null?w-eingezahlt[mi]:null;
       h+='<tr><td>'+M.slice(0,3)+'</td><td class="num">'+fmt(eingezahlt[mi])+'</td>'+
-        '<td>'+inp('depotwerte.'+mi,w??'')+'</td>'+
+        '<td>'+inp('depotwerte.'+mi,w??'',{placeholder:'eintragen'})+'</td>'+
         '<td class="num '+(r!=null&&r<0?'neg':r!=null?'pos':'')+'">'+(r!=null?fmt(r):'–')+'</td></tr>';
     });
     h+='</tbody></table></div>'+
