@@ -330,6 +330,16 @@ function normalizeYear(d){
   });
   (d.fixkosten?.monate||[]).forEach(m=>{
     if(m.abgaenge){m.abg=(m.abgaenge||[]).reduce((a,x)=>a+x,0);delete m.abgaenge;}});
+  // Migration: früheres Format hinterlegte pro Position direkt Beträge je Monat
+  // (items[].months). Jetzt werden stattdessen Monate angehakt (items[].flags)
+  // und der Gesamtbetrag (items[].value) darauf gesplittet.
+  (d.fixkosten?.items||[]).forEach(i=>{
+    if(Array.isArray(i.months)&&i.months.length===12&&!Array.isArray(i.flags)){
+      i.flags=i.months.map(v=>!!v);
+      if(!i.value) i.value=Math.round(i.months.reduce((a,x)=>a+(x||0),0)*100)/100;
+      delete i.months;
+    }
+  });
   return d;
 }
 
@@ -902,25 +912,38 @@ function renderKonten(){
 
 /* ================= FIXKOSTEN ================= */
 const abgOf=m=>m.abg!=null?m.abg:(m.abgaenge||[]).reduce((a,x)=>a+x,0);
-// Monats-Zuordnung einer Position: falls explizit gesetzt, wird die hinterlegt;
-// sonst (Altdaten) wird der Jahresbetrag gleichmässig über 12 Monate angenommen,
-// wie bisher schon beim "Empfohlener Übertrag/Monat"-Hinweis.
-function fixItemMonths(i){
-  if(Array.isArray(i.months)&&i.months.length===12) return i.months;
-  const v=Math.round(((i.value||0)/12)*100)/100;
-  return MONTHS.map(()=>v);
+// Monats-Zuordnung einer Position per Checkbox: welche Monate sind angehakt.
+// Ohne jede Markierung gilt die Position als "nicht zugeordnet" (Default:
+// Januar), damit die meisten (nur 1x/Jahr fälligen) Positionen nicht einzeln
+// auf 12 Monate verteilt werden müssen - nur die wenigen echten Raten-Fälle
+// brauchen mehrere Haken.
+function fixItemFlags(i){
+  if(Array.isArray(i.flags)&&i.flags.length===12) return i.flags;
+  return MONTHS.map((_,mi)=>mi===0);
 }
-function fixItemTotal(i){
-  return Array.isArray(i.months)&&i.months.length===12
-    ? Math.round(i.months.reduce((a,x)=>a+(x||0),0)*100)/100
-    : (i.value||0);
+// Betrag pro angehaktem Monat = Total ÷ Anzahl Haken (Rundungsrest landet im
+// letzten angehakten Monat). Ändert sich der Total-Betrag, folgt die
+// Verteilung automatisch - die Haken selbst müssen nicht angepasst werden.
+function fixItemMonthAmounts(i){
+  const flags=fixItemFlags(i);
+  const n=flags.filter(Boolean).length;
+  const arr=MONTHS.map(()=>0);
+  if(!n) return arr;
+  const total=Math.round((i.value||0)*100)/100;
+  const per=Math.round((total/n)*100)/100;
+  let lastMi=-1;
+  flags.forEach((f,mi)=>{ if(f){ arr[mi]=per; lastMi=mi; } });
+  const diff=Math.round((total-Math.round(arr.reduce((a,x)=>a+x,0)*100)/100)*100)/100;
+  if(diff&&lastMi>=0) arr[lastMi]=Math.round((arr[lastMi]+diff)*100)/100;
+  return arr;
 }
+function fixItemTotal(i){ return i.value||0; }
 // Abgänge pro Monat werden automatisch aus der Monats-Zuordnung der Positionen
 // berechnet - Steuern, Strom etc. lassen sich so auf die tatsächlichen
 // Fälligkeitsmonate verteilen statt pauschal Total÷12 anzunehmen.
 function fixAbgByMonth(fk){
   const arr=MONTHS.map(()=>0);
-  (fk.items||[]).forEach(i=>fixItemMonths(i).forEach((v,mi)=>arr[mi]+=(v||0)));
+  (fk.items||[]).forEach(i=>fixItemMonthAmounts(i).forEach((v,mi)=>arr[mi]+=(v||0)));
   return arr.map(v=>Math.round(v*100)/100);
 }
 function renderFix(){
@@ -929,20 +952,20 @@ function renderFix(){
   const sum=(fk.items||[]).reduce((a,i)=>a+fixItemTotal(i),0);
   let h='<div class="card"><div class="cardHeadRow"><h3>Jährliche Ausgaben</h3></div>'+
     '<div class="cardActions"><button class="miniBtn ghost" data-act="add" data-p="fixkosten.items">＋ Position</button></div>'+
-    '<p class="hint" style="margin:2px 0 8px">Über „📅 Monate“ pro Position festlegen, in welchen Monaten der Betrag effektiv fällig wird (z.B. Steuern in 3 Raten, Strom vierteljährlich). Ohne Zuordnung wird der Betrag gleichmässig über das Jahr angenommen.</p>'+
+    '<p class="hint" style="margin:2px 0 8px">Über „📅 Monate“ pro Position ankreuzen, in welchen Monaten der Betrag effektiv fällig wird. Ein Haken = fällt ganz in diesem Monat an, mehrere Haken = wird gleichmässig auf diese Monate gesplittet (z.B. Steuern in 3 Raten). Ohne Haken gilt Standard-Fälligkeit Januar.</p>'+
     '<table class="ledger"><tbody>';
   (fk.items||[]).forEach((i,ix)=>{
     const total=fixItemTotal(i);
     const open=openFixMonths.has(ix);
     h+='<tr><td class="labCol">'+inp('fixkosten.items.'+ix+'.label',i.label,{lab:1,kind:'text'})+'</td>'+
-      '<td class="num">'+fmt(total)+'</td>'+
+      '<td>'+inp('fixkosten.items.'+ix+'.value',i.value)+'</td>'+
       '<td><button class="miniBtn ghost" data-act="toggleFixMonths" data-i="'+ix+'">📅 Monate</button></td>'+
       '<td>'+reorderBtns('fixkosten.items',ix,fk.items.length)+'</td></tr>';
     if(open){
-      const mm=fixItemMonths(i);
+      const flags=fixItemFlags(i);
       h+='<tr><td colspan="4"><div class="scrollX"><table class="ledger"><thead><tr>'+
         MONTHS.map(m=>'<th>'+m.slice(0,3)+'</th>').join('')+'</tr></thead><tbody><tr>'+
-        MONTHS.map((m,mi)=>'<td>'+inp('fixkosten.items.'+ix+'.months.'+mi,mm[mi]||'')+'</td>').join('')+
+        MONTHS.map((m,mi)=>'<td style="text-align:center"><input type="checkbox" data-path="fixkosten.items.'+ix+'.flags.'+mi+'" data-kind="bool" '+(flags[mi]?'checked':'')+'></td>').join('')+
         '</tr></tbody></table></div></td></tr>';
     }
   });
@@ -1249,7 +1272,7 @@ async function handleAction(d){
     case 'add': getPath(yy,d.p).push({label:'Neu',value:0}); break;
     case 'toggleFixMonths': {
       const ix=+d.i; const it=yy.fixkosten.items[ix]; if(!it) return;
-      if(!Array.isArray(it.months)||it.months.length!==12){ it.months=fixItemMonths(it); save(year); }
+      if(!Array.isArray(it.flags)||it.flags.length!==12){ it.flags=fixItemFlags(it); save(year); }
       if(openFixMonths.has(ix)) openFixMonths.delete(ix); else openFixMonths.add(ix);
       renderTab(); return; }
     case 'addFromTpl': {
