@@ -516,9 +516,10 @@ function renderDash(){
   const c=calcSide(yy.calc.current);
   const accs=yy.accounts||[];
   const nowMi=(year===String(new Date().getFullYear()))?new Date().getMonth():11;
-  const nw=accs.reduce((a,ac)=>a+acctSaldoAt(ac,nowMi),0);
+  const rendite=depotRendite(yy);
+  const nw=accs.reduce((a,ac)=>a+acctSaldoAt(ac,nowMi),0)+rendite;
   const nwStart=accs.reduce((a,ac)=>a+(ac.start||0),0);
-  const gespart=accs.reduce((a,ac)=>a+(ac.months||[]).reduce((x,m)=>x+((m.plus||0)||(m.prognose!=null?m.prognose:0))-(m.minus||0),0)+lohn13For(ac),0);
+  const gespart=accs.reduce((a,ac)=>a+(ac.months||[]).reduce((x,m,mi)=>x+(monthSuppressed(mi)?0:((m.plus||0)||(m.prognose!=null?m.prognose:0)))-(m.minus||0),0)+lohn13For(ac),0);
   const lohnJahr=yy.lohnJahr||Math.round(c.inc*13);
   const bonus=yy.bonus||0, bonusIncl=!!yy.bonusIncl;
   const lohnEffektiv=lohnJahr+(bonusIncl?bonus:0);
@@ -529,7 +530,7 @@ function renderDash(){
   const notAcc=findNotAcc(accs);
   const notSaldo=notAcc?acctSaldoAt(notAcc,nowMi):0;
   const notZiel=settings.notgroschenZiel||30000;
-  const yearEndNW=accs.reduce((a,ac)=>a+acctSaldoAt(ac,11),0);
+  const yearEndNW=accs.reduce((a,ac)=>a+acctSaldoAt(ac,11),0)+rendite;
   const projRendite=settings.projRendite||0;
   const projYears=20;
   const projLabels=Array.from({length:projYears+1},(_,i)=>String(+year+i));
@@ -545,6 +546,8 @@ function renderDash(){
     '<div class="dashCell"><div class="cap">Zuwachs im Jahr</div>'+
       '<div class="val num '+(nw-nwStart<0?'neg':'pos')+'">'+fmt(nw-nwStart)+'</div></div>'+
     '</div>';
+  if(rendite) h+='<p class="hint" style="margin:6px 6px 0">Im Nettowert enthalten: Depot-Kursgewinn/-verlust '+
+    '<b class="num '+(rendite<0?'neg':'pos')+'">'+fmt(rendite)+'</b> (Stand letzter erfasster Depotwert, siehe Mehr → Depot-Wertentwicklung).</p>';
   h+='<div class="card" style="margin-top:12px"><h3>Sparquote '+year+'</h3>'+
     '<div class="statLine"><span>Gespart (alle Konten, ＋ − −, inkl. 13. Lohn falls gebucht)</span><b class="num pos">'+fmt(gespart)+'</b></div>'+
     '<div class="statLine"><span>Jahreslohn (editierbar)</span><b>'+inp('lohnJahr',lohnJahr)+'</b></div>'+
@@ -649,15 +652,25 @@ function renderMonat(){
 // lohn13 wird rein rechnerisch on top des Dezember-Zuflusses berücksichtigt,
 // ohne das "+"-Feld selbst zu überschreiben (Platz für den normalen
 // Spartransfer bleibt erhalten).
+// Regelmässige Zugänge (Lohn, Spartransfer, Investition) passieren bei vielen
+// Konten erst um einen bestimmten Tag im Monat (z.B. 26.). Vor diesem Tag ist
+// der laufende Monat noch nicht wirklich passiert - weder als "echter" Wert
+// noch als Prognose sollte er also schon mitgezählt werden.
+function monthSuppressed(mi){
+  const now=new Date();
+  if(String(year)!==String(now.getFullYear())) return false;
+  return mi===now.getMonth()&&now.getDate()<(settings.depotTransferDay||26);
+}
 function accountSaldi(a){
-  let run=a.start||0; const saldi=[]; const prog=[];
-  (a.months||[]).forEach(m=>{
-    const usedProg=!m.plus&&m.prognose!=null;
-    const plusEff=(m.plus||0)||(m.prognose!=null?m.prognose:0);
+  let run=a.start||0; const saldi=[]; const prog=[]; const wait=[];
+  (a.months||[]).forEach((m,mi)=>{
+    const suppressed=monthSuppressed(mi);
+    const usedProg=!suppressed&&!m.plus&&m.prognose!=null;
+    const plusEff=suppressed?0:((m.plus||0)||(m.prognose!=null?m.prognose:0));
     run=Math.round((run+plusEff-(m.minus||0))*100)/100;
-    saldi.push(run); prog.push(usedProg);
+    saldi.push(run); prog.push(usedProg); wait.push(suppressed);
   });
-  saldi.usedProg=prog;
+  saldi.usedProg=prog; saldi.waiting=wait;
   return saldi;
 }
 function lohn13For(a){ return Y().netto?.lohn13Konto===a.name?(Y().netto.lohn13Applied||0):0; }
@@ -712,20 +725,36 @@ function depotEingezahltSeries(targetYear){
   }
   let cum=base; return invByMonth.map(v=>cum=Math.round((cum+v)*100)/100);
 }
+// Depot-Rendite (Kursgewinn/-verlust): letzter erfasster Depotwert minus die
+// bis dahin kumulierten Einzahlungen. Wird zusätzlich zu den reinen
+// Kontosalden (die nur Zahlungsbewegungen abbilden) zum Nettowert addiert,
+// da sonst Kursgewinne im Depot nirgends im Vermögen auftauchen würden.
+function depotRendite(yy){
+  const depotAccs=findDepotAccs(yy.accounts||[]);
+  if(!depotAccs.length) return 0;
+  const eingezahlt=depotEingezahltSeries(year);
+  const dw=yy.depotwerte||[];
+  let lastWertMi=-1; dw.forEach((w,mi)=>{ if(w!=null) lastWertMi=mi; });
+  if(lastWertMi<0) return 0;
+  return Math.round((dw[lastWertMi]-eingezahlt[lastWertMi])*100)/100;
+}
 // Saldo eines Kontos am Ende von Monat mi (0-11), inkl. 13. Monatslohn ab Dezember
 function acctSaldoAt(a,mi){ const s=accountSaldi(a)[mi]; return mi===11?s+lohn13For(a):s; }
 function renderKonten(){
   if(!years[year]){renderMonat();return;}
   const accs=Y().accounts||[];
   const nw=MONTHS.map((_,mi)=>accs.reduce((a,ac)=>a+acctSaldoAt(ac,mi),0));
+  const kRendite=depotRendite(Y());
+  const nwDezTotal=(nw[11]||0)+kRendite;
   let h='<div class="card"><h3>Total Nettowert</h3>'+
     '<div class="kb" style="margin:2px 0 10px"><div><div class="cap">Aktuell (Dez)</div>'+
-    '<div class="val num"><span class="dblRule">'+fmt(nw[11]||0)+'</span></div></div>'+
-    '<div><div class="cap">Zuwachs im Jahr</div><div class="val num '+((nw[11]||0)-accs.reduce((a,ac)=>a+(ac.start||0),0)<0?'neg':'pos')+'">'+fmt((nw[11]||0)-accs.reduce((a,ac)=>a+(ac.start||0),0))+'</div></div>'+
+    '<div class="val num"><span class="dblRule">'+fmt(nwDezTotal)+'</span></div></div>'+
+    '<div><div class="cap">Zuwachs im Jahr</div><div class="val num '+(nwDezTotal-accs.reduce((a,ac)=>a+(ac.start||0),0)<0?'neg':'pos')+'">'+fmt(nwDezTotal-accs.reduce((a,ac)=>a+(ac.start||0),0))+'</div></div>'+
     '<div><div class="cap">Konten</div><div class="val num">'+accs.length+'</div></div></div>'+
     '<div class="chartBox"><canvas id="cNW"></canvas></div>'+
     '<p class="hint" style="margin-top:8px">Solange für einen Monat kein tatsächlicher „＋“-Wert erfasst ist, rechnet der Saldo mit der Prognose (Kennzeichnung „Ø“). '+
-    'Sobald du den echten Betrag einträgst, ersetzt er die Prognose automatisch.</p></div>';
+    'Sobald du den echten Betrag einträgst, ersetzt er die Prognose automatisch.'+
+    (kRendite?' Enthält Depot-Kursgewinn/-verlust von '+fmt(kRendite)+' (Chart oben zeigt nur die reinen Kontobewegungen ohne diesen Effekt).':'')+'</p></div>';
   const notAcc=findNotAcc(accs);
   const notZiel=settings.notgroschenZiel||30000;
   const depotAccs=findDepotAccs(accs);
