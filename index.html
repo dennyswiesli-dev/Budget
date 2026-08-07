@@ -677,6 +677,33 @@ function findDepotAccs(accs){
   const names=settings.depotAccNames||[];
   return accs.filter(a=>names.includes(a.name));
 }
+// Kumulierte Netto-Einzahlungen der Depot-Konten über ALLE Jahre bis targetYear,
+// nicht nur innerhalb des einen Jahres (Investieren läuft ja meist schon länger).
+function depotEingezahltSeries(targetYear){
+  const names=settings.depotAccNames||[];
+  const allYearNums=Object.keys(years).map(Number).sort((a,b)=>a-b);
+  let base=0;
+  names.forEach(name=>{
+    for(const y of allYearNums){
+      const acc=(years[String(y)].accounts||[]).find(a=>a.name===name);
+      if(acc){ base+=acc.start||0; break; }
+    }
+  });
+  allYearNums.filter(y=>y<+targetYear).forEach(y=>{
+    names.forEach(name=>{
+      const acc=(years[String(y)].accounts||[]).find(a=>a.name===name);
+      if(acc) (acc.months||[]).forEach(m=>base+=(m.plus||0)-(m.minus||0));
+    });
+  });
+  base=Math.round(base*100)/100;
+  const invByMonth=Array(12).fill(0);
+  const ty=years[String(targetYear)];
+  names.forEach(name=>{
+    const acc=(ty?.accounts||[]).find(a=>a.name===name);
+    if(acc) (acc.months||[]).forEach((m,mi)=>invByMonth[mi]+=(m.plus||0)-(m.minus||0));
+  });
+  let cum=base; return invByMonth.map(v=>cum=Math.round((cum+v)*100)/100);
+}
 // Saldo eines Kontos am Ende von Monat mi (0-11), inkl. 13. Monatslohn ab Dezember
 function acctSaldoAt(a,mi){ const s=accountSaldi(a)[mi]; return mi===11?s+lohn13For(a):s; }
 function renderKonten(){
@@ -954,9 +981,7 @@ function renderMehr(){
         '<p class="hint">Noch kein Depot-Konto markiert. Geh zum <b>Konten</b>-Tab und markiere dort dein(e) Investitionskonto(en) '+
         '(z. B. Broker, Säule 3a) mit „Als Depot markieren“, dann erscheint hier die Auswertung.</p></div>';
     }else{
-      const invByMonth=Array(12).fill(0);
-      depotAccs.forEach(a=>(a.months||[]).forEach((m,mi)=>invByMonth[mi]+=(m.plus||0)-(m.minus||0)));
-      let cum=0; const eingezahlt=invByMonth.map(v=>cum=Math.round((cum+v)*100)/100);
+      const eingezahlt=depotEingezahltSeries(year);
       const dw=yy.depotwerte||Array(12).fill(null);
       depotEingezahlt=eingezahlt; depotWerte=dw;
       let lastWertMi=-1; dw.forEach((w,mi)=>{ if(w!=null) lastWertMi=mi; });
@@ -981,7 +1006,7 @@ function renderMehr(){
           '<td class="num '+(r!=null&&r<0?'neg':r!=null?'pos':'')+'">'+(r!=null?fmt(r):'–')+'</td></tr>';
       });
       h+='</tbody></table></div>'+
-        '<p class="hint" style="margin-top:8px">Eingezahlt = Summe der ＋/− Bewegungen der markierten Depot-Konten (Konten-Tab), kumuliert über das Jahr. '+
+        '<p class="hint" style="margin-top:8px">Eingezahlt = Summe der ＋/− Bewegungen der markierten Depot-Konten (Konten-Tab) seit Beginn, nicht nur '+year+'. '+
         'Trag hier zusätzlich monatlich den tatsächlichen Depotwert ein (z. B. aus der Broker-App) – die Rendite ergibt sich aus Depotwert minus Einzahlungen.</p></div>';
     }
   }
