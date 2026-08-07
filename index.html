@@ -525,10 +525,10 @@ function renderDash(){
   const nw=accs.reduce((a,ac)=>a+acctSaldoAt(ac,nowMi),0)+rendite;
   const nwStart=accs.reduce((a,ac)=>a+(ac.start||0),0);
   const gespart=accs.reduce((a,ac)=>{
-    const isDepotAcc=isDepotName(ac.name), dayLocked=isDayLockedName(ac.name);
+    const dayLocked=isDayLockedName(ac.name);
     return a+(ac.months||[]).reduce((x,m,mi)=>{
       const pending=dayLocked&&monthIsCurrentPending(mi);
-      const plusEff=pending?(isDepotAcc?0:(m.plus||0)):((m.plus||0)||(m.prognose!=null?m.prognose:0));
+      const plusEff=pending?0:((m.plus||0)||(m.prognose!=null?m.prognose:0));
       const minusEff=pending?0:(m.minus||0);
       return x+plusEff-minusEff;
     },0)+lohn13For(ac);
@@ -556,7 +556,7 @@ function renderDash(){
       '<div class="val num '+(c.moegl<0?'neg':'pos')+'">'+fmt(c.moegl)+'</div></div>'+
     '<div class="dashCell"><div class="cap">Nettowert ('+MONTHS[nowMi].slice(0,3)+')</div>'+
       '<div class="val num">'+fmt(nw)+'</div></div>'+
-    '<div class="dashCell"><div class="cap">Zuwachs im Jahr</div>'+
+    '<div class="dashCell"><div class="cap">Zuwachs bis heute</div>'+
       '<div class="val num '+(nw-nwStart<0?'neg':'pos')+'">'+fmt(nw-nwStart)+'</div></div>'+
     '</div>';
   if(rendite) h+='<p class="hint" style="margin:6px 6px 0">Im Nettowert enthalten: Depot-Kursgewinn/-verlust '+
@@ -589,8 +589,8 @@ function renderDash(){
     '<p><b>Restguthaben Monat</b> = Startkapital + Löhne/Gutschriften − Summe aller drei Ausgabenblöcke (Monat-Tab, aktueller Monat).</p>'+
     '<p><b>Mögliches Sparen</b> = Restguthaben − '+fmt(settings.lohnkontoZiel||4000)+' Lohnkonto-Ziel (Regel 1).</p>'+
     '<p><b>Nettowert</b> = Summe der Salden aller Konten im aktuellen Monat. Jeder Saldo = Start + kumulierte ＋ − kumulierte −; solange kein echter ＋-Wert erfasst ist, wird die Prognose verwendet.</p>'+
-    '<p><b>Zuwachs im Jahr</b> = Nettowert aktuell − Summe der Konten-Startsalden.</p>'+
-    '<p><b>Sparquote</b> = Gespartes ÷ Jahreslohn (optional + Bonus). Gespartes = Summe (＋ minus −) über alle Konten im Jahr, inkl. Prognose (für Monate ohne echten Wert) und 13. Lohn falls gebucht – identisch mit «Zuwachs im Jahr» im Konten-Tab; Jahreslohn editierbar oder per Button aus dem Lohn-Tab.</p>'+
+    '<p><b>Zuwachs bis heute</b> = Nettowert aktuell (Stand heute) − Summe der Konten-Startsalden. Das ist ein anderer Wert als «Zuwachs Jahresende (Prognose)» im Konten-Tab, welcher den ganzen Jahresverlauf inkl. Prognose für noch nicht erreichte Monate hochrechnet.</p>'+
+    '<p><b>Sparquote</b> = Gespartes ÷ Jahreslohn (optional + Bonus). Gespartes = Summe (＋ minus −) über alle Konten fürs ganze Jahr (inkl. Prognose für Monate ohne echten Wert) und 13. Lohn falls gebucht, aber <b>ohne</b> Depot-Rendite. «Zuwachs Jahresende (Prognose)» im Konten-Tab = Gespartes + Depot-Rendite. Jahreslohn editierbar oder per Button aus dem Lohn-Tab.</p>'+
     '<p><b>Notgroschen</b> = Saldo des Sparkontos (erkannt am Namen, ohne «Steuern») gegen das Ziel '+fmt(settings.notgroschenZiel||30000)+'; Balken warnt ab 80 %.</p>'+
     '<p><b>FIRE</b> = Nettowert ÷ benötigtes Vermögen; benötigt = FIRE-Jahreskosten ÷ Entnahmerate ('+(((settings.fire||{}).entnahmerate||0.026)*100).toFixed(1)+' %).</p>'+
     '<p><b>Vermögens-Hochrechnung</b> = Jahresendstand des aktuellen Jahres + n × jährliches Sparen (inkl. Prognose &amp; 13. Lohn), linear für 20 Jahre – ohne Anlagerendite.</p>'+
@@ -684,18 +684,18 @@ function monthIsCurrentPending(mi){
   return mi===now.getMonth()&&now.getDate()<(settings.depotTransferDay||26);
 }
 function accountSaldi(a){
-  const isDepotAcc=isDepotName(a.name);
   const dayLocked=isDayLockedName(a.name);
   let run=a.start||0; const saldi=[]; const prog=[]; const wait=[];
   (a.months||[]).forEach((m,mi)=>{
     const pending=dayLocked&&monthIsCurrentPending(mi);
-    // Depot: komplett gesperrt (echte Werte + Prognose), 1:1 durch die
-    // Depot-Rendite ausgeglichen. Andere Tages-gesperrte Konten: nur die
-    // Prognose wird zurückgehalten, bereits real eingetragene Werte zählen
-    // trotzdem sofort (keine Ausgleichsrechnung vorhanden).
-    const plusEff=pending?(isDepotAcc?0:(m.plus||0)):((m.plus||0)||(m.prognose!=null?m.prognose:0));
+    // Tages-gesperrte Konten (Depot/Notgroschen/manuell markiert): der laufende
+    // Monat zählt komplett erst ab dem Transfertag - egal ob echter Wert oder
+    // Prognose. Bei Depot wird das 1:1 durch die Depot-Rendite ausgeglichen;
+    // bei anderen Konten ist das eine bewusste, explizit angeforderte
+    // Vereinfachung ("lieber zu tief bis zum Stichtag als zu früh gezählt").
+    const plusEff=pending?0:((m.plus||0)||(m.prognose!=null?m.prognose:0));
     const minusEff=pending?0:(m.minus||0);
-    const usedProg=!m.plus&&m.prognose!=null&&plusEff===m.prognose;
+    const usedProg=!pending&&!m.plus&&m.prognose!=null&&plusEff===m.prognose;
     run=Math.round((run+plusEff-minusEff)*100)/100;
     saldi.push(run); prog.push(usedProg); wait.push(pending);
   });
@@ -787,9 +787,9 @@ function renderKonten(){
   const kRendite=depotRendite(Y());
   const nwDezTotal=(nw[11]||0)+kRendite;
   let h='<div class="card"><h3>Total Nettowert</h3>'+
-    '<div class="kb" style="margin:2px 0 10px"><div><div class="cap">Aktuell (Dez)</div>'+
+    '<div class="kb" style="margin:2px 0 10px"><div><div class="cap">Jahresende (Prognose)</div>'+
     '<div class="val num"><span class="dblRule">'+fmt(nwDezTotal)+'</span></div></div>'+
-    '<div><div class="cap">Zuwachs im Jahr</div><div class="val num '+(nwDezTotal-accs.reduce((a,ac)=>a+(ac.start||0),0)<0?'neg':'pos')+'">'+fmt(nwDezTotal-accs.reduce((a,ac)=>a+(ac.start||0),0))+'</div></div>'+
+    '<div><div class="cap">Zuwachs Jahresende (Prognose)</div><div class="val num '+(nwDezTotal-accs.reduce((a,ac)=>a+(ac.start||0),0)<0?'neg':'pos')+'">'+fmt(nwDezTotal-accs.reduce((a,ac)=>a+(ac.start||0),0))+'</div></div>'+
     '<div><div class="cap">Konten</div><div class="val num">'+accs.length+'</div></div></div>'+
     '<div class="chartBox"><canvas id="cNW"></canvas></div>'+
     '<p class="hint" style="margin-top:8px">Solange für einen Monat kein tatsächlicher „＋“-Wert erfasst ist, rechnet der Saldo mit der Prognose (Kennzeichnung „Ø“). '+
@@ -856,7 +856,8 @@ function renderKonten(){
         '<td>'+inp('accounts.'+ai+'.months.'+mi+'.prognose',m.prognose??'')+'</td>'+
         '<td>'+inp('accounts.'+ai+'.months.'+mi+'.plus',m.plus||'')+'</td>'+
         '<td>'+inp('accounts.'+ai+'.months.'+mi+'.minus',m.minus||'')+'</td>'+
-        '<td class="num">'+fmt(saldi[mi])+(saldi.usedProg[mi]?' <span class="pill" title="Basiert auf Prognose, noch kein echter Wert erfasst">Ø</span>':'')+'</td></tr>';
+        '<td class="num">'+fmt(saldi[mi])+(saldi.usedProg[mi]?' <span class="pill" title="Basiert auf Prognose, noch kein echter Wert erfasst">Ø</span>':'')+
+        (saldi.waiting[mi]?' <span class="pill" title="Tages-Sperre aktiv: zählt erst ab dem Investitionstag">⏳</span>':'')+'</td></tr>';
     });
     if(l13) h+='<tr><td class="labCol">13. Lohn</td><td></td>'+
       '<td class="num pos">'+fmt(l13)+'</td><td></td>'+
