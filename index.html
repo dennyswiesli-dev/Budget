@@ -361,7 +361,25 @@ async function loadAll(){
     else years[d.id]=normalizeYear(d.data()); });
   const ys=Object.keys(years).sort();
   if(ys.length && !years[year]) year=ys[ys.length-1];
+  migrateDayLock();
   renderYear();
+}
+// Tages-Sperre war früher für Notgroschen-/Depot-Konten automatisch aktiv.
+// Jetzt ist sie pro Konto frei ein-/ausschaltbar; damit sich das Verhalten
+// für bestehende Nutzer nicht stillschweigend ändert, wird sie einmalig
+// in die manuelle Liste übernommen.
+function migrateDayLock(){
+  if(settings.dayLockMigrated) return;
+  settings.dayLockedAccNames=settings.dayLockedAccNames||[];
+  Object.values(years).forEach(yy=>{
+    (yy.accounts||[]).forEach(a=>{
+      if((isNotgroschenName(a.name)||isDepotName(a.name))&&!settings.dayLockedAccNames.includes(a.name)){
+        settings.dayLockedAccNames.push(a.name);
+      }
+    });
+  });
+  settings.dayLockMigrated=true;
+  save('settings');
 }
 function checkMonthReminder(){
   if(!settings.notifyEnabled||typeof Notification==='undefined'||Notification.permission!=='granted') return;
@@ -674,10 +692,11 @@ function renderMonat(){
 // (z.B. weil der Lohn schon eingegangen ist) fälschlich unterschlagen.
 function isDepotName(name){ return (settings.depotAccNames||[]).includes(name); }
 function isNotgroschenName(name){
-  return settings.notgroschenAccName?settings.notgroschenAccName===name:(/sparkonto/i.test(name)&&!/steuer/i.test(name));
+  if(settings.notgroschenAccName!=null) return settings.notgroschenAccName===name;
+  return /sparkonto/i.test(name)&&!/steuer/i.test(name);
 }
 function isDayLockedName(name){
-  return isDepotName(name)||isNotgroschenName(name)||(settings.dayLockedAccNames||[]).includes(name);
+  return (settings.dayLockedAccNames||[]).includes(name);
 }
 function monthIsCurrentPending(mi){
   const now=new Date();
@@ -717,9 +736,8 @@ function lohn13For(a){ return Y().netto?.lohn13Konto===a.name?(Y().netto.lohn13A
 // Notgroschen-Konto: explizite Markierung (settings.notgroschenAccName) hat Vorrang,
 // sonst automatische Erkennung am Namen als Fallback (Altdaten/Erstnutzung).
 function findNotAcc(accs){
-  if(settings.notgroschenAccName){
-    const hit=accs.find(a=>a.name===settings.notgroschenAccName);
-    if(hit) return hit;
+  if(settings.notgroschenAccName!=null){
+    return accs.find(a=>a.name===settings.notgroschenAccName);
   }
   return accs.find(a=>/sparkonto/i.test(a.name)&&!/steuer/i.test(a.name));
 }
@@ -827,7 +845,7 @@ function renderKonten(){
         '<div class="statLine"><span>Depot-/Investitionskonto</span>'+
         (isDepot?'<button class="miniBtn" data-act="unmarkDepot" data-i="'+ai+'">Aktiv ✓</button>':'<button class="miniBtn ghost" data-act="markDepot" data-i="'+ai+'">Aktivieren</button>')+'</div>'+
         '<div class="statLine"><span>Tages-Sperre<br><span class="hint">Zu-/Abgänge im laufenden Monat zählen erst ab dem Investitionstag (siehe Mehr → Depot-Wertentwicklung)</span></span>'+
-        ((a===notAcc||isDepot)?'<button class="miniBtn" disabled title="Automatisch aktiv, da Notgroschen-/Depot-Konten immer der Tages-Sperre unterliegen">Automatisch aktiv</button>':(isDayLocked?'<button class="miniBtn" data-act="unmarkDayLock" data-i="'+ai+'">Aktiv ✓</button>':'<button class="miniBtn ghost" data-act="markDayLock" data-i="'+ai+'">Aktivieren</button>'))+'</div>'+
+        (isDayLocked?'<button class="miniBtn" data-act="unmarkDayLock" data-i="'+ai+'">Aktiv ✓</button>':'<button class="miniBtn ghost" data-act="markDayLock" data-i="'+ai+'">Aktivieren</button>')+'</div>'+
         '<div class="statLine"><span>Lohnkonto-Sync<br><span class="hint">⚠️ Überschreibt den Saldo des aktuellen Monats laufend mit dem Startkapital aus dem Monat-Tab</span></span>'+
         (isLohnkonto?'<button class="miniBtn" data-act="unmarkLohnkonto" data-i="'+ai+'">Aktiv ✓</button>':'<button class="miniBtn ghost" data-act="markLohnkonto" data-i="'+ai+'">Aktivieren</button>')+'</div>'
       ):'');
@@ -1232,7 +1250,7 @@ async function handleAction(d){
       toast('„'+acc.name+'“ als Notgroschen-Konto markiert'); renderTab(); return; }
     case 'unmarkNotgroschen': {
       const acc=yy.accounts[+d.i]; if(!acc) return;
-      settings.notgroschenAccName=null; save('settings');
+      settings.notgroschenAccName=''; save('settings');
       toast('„'+acc.name+'“ ist kein Notgroschen-Konto mehr'); renderTab(); return; }
     case 'markDepot': {
       const acc=yy.accounts[+d.i]; if(!acc) return;
