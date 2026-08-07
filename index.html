@@ -112,7 +112,8 @@ main{max-width:760px;margin:0 auto;padding:16px 12px 8px;transition:max-width .1
 /* Tabellen */
 table.ledger{width:100%;max-width:100%;border-collapse:collapse;font-size:.87rem}
 table.ledger th{font-size:.66rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);
-  text-align:right;padding:6px;border-bottom:1px solid var(--rule-strong);font-weight:600;white-space:normal}
+  text-align:right;padding:6px;border-bottom:1px solid var(--rule-strong);font-weight:600;white-space:normal;
+  vertical-align:bottom}
 table.ledger th:first-child, table.ledger td:first-child{text-align:left}
 table.ledger td{padding:7px 6px;border-bottom:1px solid var(--rule);text-align:right;white-space:nowrap}
 table.ledger tbody tr:hover{background:var(--bg)}
@@ -163,6 +164,14 @@ table.ledger tr.sumRow td{border-top:2px solid var(--rule-strong);border-bottom:
 .statLine:last-child{border:none}
 .statLine b{font-weight:600}
 .chartBox{position:relative;width:100%;max-height:260px;min-height:200px}
+@media(min-width:900px){.chartBox{max-height:320px}}
+
+/* Dezente Scrollbalken statt der grellen Browser-Standardleiste */
+.scrollX,.card{scrollbar-width:thin;scrollbar-color:var(--rule-strong) transparent}
+.scrollX::-webkit-scrollbar,.card::-webkit-scrollbar{height:6px;width:6px}
+.scrollX::-webkit-scrollbar-track,.card::-webkit-scrollbar-track{background:transparent}
+.scrollX::-webkit-scrollbar-thumb,.card::-webkit-scrollbar-thumb{background:var(--rule-strong);border-radius:99px}
+.scrollX::-webkit-scrollbar-thumb:hover,.card::-webkit-scrollbar-thumb:hover{background:var(--muted)}
 
 nav.tabs{position:fixed;bottom:0;left:0;right:0;background:rgba(255,255,255,.92);backdrop-filter:blur(14px);
   border-top:1px solid var(--rule-strong);display:flex;z-index:40;padding-bottom:env(safe-area-inset-bottom)}
