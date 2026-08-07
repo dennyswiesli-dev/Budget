@@ -85,9 +85,18 @@ header.appHead{background:linear-gradient(120deg,#5B5FEF,#8B5CF6);color:#fff;
   background:rgba(255,255,255,.14);color:#fff;flex:none}
 .iconBtn:hover{background:rgba(255,255,255,.24)}
 
-main{max-width:760px;margin:0 auto;padding:16px 12px 8px}
+main{max-width:760px;margin:0 auto;padding:16px 12px 8px;transition:max-width .15s}
 .card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);
   padding:16px 14px;margin-bottom:14px;border:1px solid var(--rule);overflow-x:auto}
+.cardGrid{display:block}
+.cardGrid>.card{margin-bottom:14px}
+@media(min-width:900px){
+  main{max-width:1080px}
+  .cardGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;align-items:start}
+  .cardGrid>.card{margin-bottom:0}
+}
+@media(min-width:1300px){ main{max-width:1360px} }
+@media(min-width:1700px){ main{max-width:1600px} }
 .card h3{font-size:1.05rem;margin-bottom:10px;color:var(--ink)}
 .cardHeadRow{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:2px;flex-wrap:wrap}
 .cardHeadRow h3{margin:0}
@@ -170,6 +179,7 @@ nav.tabs button.on .ico{transform:translateY(-2px)}
 .saveDot.on{opacity:1}
 .pill{font-size:.7rem;background:var(--primary-soft);border-radius:99px;padding:3px 10px;color:var(--on-soft);font-weight:600}
 .monthGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:8px 0}
+@media(min-width:640px){.monthGrid{grid-template-columns:repeat(6,1fr)}}
 .monthChip{display:flex;align-items:center;justify-content:center;gap:6px;padding:9px 6px;
   border-radius:12px;background:var(--primary-soft);color:var(--on-soft);font-weight:600;
   font-size:.85rem;cursor:pointer;user-select:none;transition:background .15s,color .15s}
@@ -841,6 +851,7 @@ function renderKonten(){
   const notAcc=findNotAcc(accs);
   const notZiel=settings.notgroschenZiel||30000;
   const depotAccs=findDepotAccs(accs);
+  h+='<div class="cardGrid">';
   accs.forEach((a,ai)=>{
     const l13=lohn13For(a);
     const saldi=accountSaldi(a);
@@ -910,6 +921,7 @@ function renderKonten(){
       '<td class="num"><span class="dblRule">'+fmt(Number.isFinite(decFinal)?decFinal:a.start)+'</span></td></tr>';
     h+='</tbody></table></div></div>';
   });
+  h+='</div>';
   h+='<button class="miniBtn" data-act="addAcc">＋ Konto hinzufügen</button> '+
     '<button class="miniBtn ghost" data-act="carryOverBalances" style="margin-bottom:16px">Endsaldi → '+(+year+1)+' übernehmen</button>'+
     '<p class="hint" style="margin:-8px 0 16px">Überträgt die Dezember-Endsaldi als Startkapital ins Folgejahr (bleibt dort editierbar, z. B. für Zinsen).</p>';
@@ -960,8 +972,11 @@ function renderFix(){
   if(!years[year]){renderMonat();return;}
   const fk=Y().fixkosten;
   const sum=(fk.items||[]).reduce((a,i)=>a+fixItemTotal(i),0);
-  let h='<div class="card"><div class="cardHeadRow"><h3>Jährliche Ausgaben</h3></div>'+
-    '<div class="cardActions"><button class="miniBtn ghost" data-act="add" data-p="fixkosten.items">＋ Position</button></div>'+
+  const prevY=years[String(+year-1)];
+  let h='<div class="cardGrid">';
+  h+='<div class="card"><div class="cardHeadRow"><h3>Jährliche Ausgaben</h3></div>'+
+    '<div class="cardActions"><button class="miniBtn ghost" data-act="add" data-p="fixkosten.items">＋ Position</button>'+
+    (prevY?.fixkosten?.items?.length?'<button class="miniBtn ghost" data-act="copyFixFromPrevYear">📥 Aus '+(+year-1)+' übernehmen</button>':'')+'</div>'+
     '<p class="hint" style="margin:2px 0 8px">Über „📅 Monate“ pro Position ankreuzen, in welchen Monaten der Betrag effektiv fällig wird. Ein Haken = fällt ganz in diesem Monat an, mehrere Haken = wird gleichmässig auf diese Monate gesplittet (z.B. Steuern in 3 Raten). Ohne Haken gilt Standard-Fälligkeit Januar.</p>'+
     '<table class="ledger"><tbody>';
   (fk.items||[]).forEach((i,ix)=>{
@@ -1003,6 +1018,7 @@ function renderFix(){
   h+='</tbody></table></div>'+
     '<div class="statLine"><span>Überschuss budgetiert (Einzahlungen − Jahresausgaben)</span><b class="num '+(einSum-sum<0?'neg':'pos')+'">'+fmt(einSum-sum)+'</b></div>'+
     '<div class="statLine"><span>Überschuss effektiv (Endsaldo − Basis)</span><b class="num '+(run-(fk.base||0)<0?'neg':'pos')+'">'+fmt(run-(fk.base||0))+'</b></div></div>';
+  h+='</div>';
   $('tabFix').innerHTML=h;
 }
 
@@ -1281,6 +1297,13 @@ async function handleAction(d){
   const yy=Y();
   switch(d.act){
     case 'add': getPath(yy,d.p).push({label:'Neu',value:0}); break;
+    case 'copyFixFromPrevYear': {
+      const prevY=years[String(+year-1)];
+      const prevItems=prevY?.fixkosten?.items;
+      if(!prevItems?.length) return;
+      if(!confirm('Fixkosten-Positionen (Beträge & Monats-Zuordnung) aus '+(+year-1)+' übernehmen?\n\nBestehende Positionen in '+year+' werden dabei ersetzt.')) return;
+      yy.fixkosten.items=JSON.parse(JSON.stringify(prevItems));
+      save(year); toast('Fixkosten-Positionen aus '+(+year-1)+' übernommen'); renderTab(); return; }
     case 'toggleFixMonths': {
       const ix=+d.i; const it=yy.fixkosten.items[ix]; if(!it) return;
       if(!Array.isArray(it.flags)||it.flags.length!==12){ it.flags=fixItemFlags(it); save(year); }
