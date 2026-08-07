@@ -597,7 +597,7 @@ function renderDash(){
   const lohnEffektiv=lohnJahr+(bonusIncl?bonus:0);
   const sparquote=lohnEffektiv?gespart/lohnEffektiv*100:0;
   const fire=settings.fire||{};
-  const fSum=(fire.items||[]).reduce((a,i)=>a+(i.value||0),0);
+  const fSum=(yy.fixkosten?.items||[]).reduce((a,i)=>a+fixItemTotal(i),0)+(fire.items||[]).reduce((a,i)=>a+(i.value||0),0);
   const noetig=fire.entnahmerate?fSum/fire.entnahmerate:0;
   const notAcc=findNotAcc(accs);
   const notSaldo=notAcc?acctSaldoAt(notAcc,nowMi):0;
@@ -651,7 +651,7 @@ function renderDash(){
     '<p><b>Zuwachs bis heute</b> = Nettowert aktuell (Stand heute) − Summe der Konten-Startsalden. Das ist ein anderer Wert als «Zuwachs Jahresende (Prognose)» im Konten-Tab, welcher den ganzen Jahresverlauf inkl. Prognose für noch nicht erreichte Monate hochrechnet.</p>'+
     '<p><b>Sparquote</b> = Gespartes ÷ Jahreslohn (optional + Bonus). Gespartes = Summe (＋ minus −) über alle Konten fürs ganze Jahr (inkl. Prognose für Monate ohne echten Wert) und 13. Lohn falls gebucht, aber <b>ohne</b> Depot-Rendite. «Zuwachs Jahresende (Prognose)» im Konten-Tab = Gespartes + Depot-Rendite. Jahreslohn editierbar oder per Button aus dem Lohn-Tab.</p>'+
     '<p><b>Notgroschen</b> = Saldo des Sparkontos (erkannt am Namen, ohne «Steuern») gegen das Ziel '+fmt(settings.notgroschenZiel||30000)+'; Balken warnt ab 80 %.</p>'+
-    '<p><b>FIRE</b> = Nettowert ÷ benötigtes Vermögen; benötigt = FIRE-Jahreskosten ÷ Entnahmerate ('+(((settings.fire||{}).entnahmerate||0.026)*100).toFixed(1)+' %).</p>'+
+    '<p><b>FIRE</b> = Nettowert ÷ benötigtes Vermögen; benötigt = FIRE-Jahreskosten ÷ Entnahmerate ('+(((settings.fire||{}).entnahmerate||0.026)*100).toFixed(1)+' %). FIRE-Jahreskosten = Fixkosten '+year+' (automatisch aus dem Fixkosten-Tab) + zusätzliche Positionen unter Mehr → FIRE-Berechnung.</p>'+
     '<p><b>Vermögens-Hochrechnung</b> = Jahresendstand des aktuellen Jahres + n × jährliches Sparen (inkl. Prognose &amp; 13. Lohn), linear für 20 Jahre – ohne Anlagerendite.</p>'+
     '</div></details></div>';
   $('tabDash').innerHTML=h;
@@ -1179,7 +1179,9 @@ function renderMehr(){
   const yy=years[year]||emptyYear();
   if(years[year]&&!yy.depotwerte) yy.depotwerte=Array(12).fill(null);
   const fire=settings.fire||{items:[],entnahmerate:0.026};
-  const fSum=(fire.items||[]).reduce((a,i)=>a+(i.value||0),0);
+  const fixSum=(yy.fixkosten?.items||[]).reduce((a,i)=>a+fixItemTotal(i),0);
+  const fireExtraSum=(fire.items||[]).reduce((a,i)=>a+(i.value||0),0);
+  const fSum=fixSum+fireExtraSum;
   const noetig=fire.entnahmerate?fSum/fire.entnahmerate:0;
   let h='<p class="sectionCap">Grössere Anschaffungen '+year+'</p><div class="card">'+
     '<p class="hint" style="margin-bottom:8px">Einmalige grössere Käufe (Möbel, Geräte etc.) – für laufende Aktien-/Fondsinvestitionen siehe „Depot-Wertentwicklung“ unten, basierend auf deinen als Depot markierten Konten.</p>'+
@@ -1234,13 +1236,17 @@ function renderMehr(){
         'Trag hier zusätzlich monatlich den tatsächlichen Depotwert ein (z. B. aus der Broker-App) – die Rendite ergibt sich aus Depotwert minus Einzahlungen.</p></div>';
     }
   }
-  h+='<p class="sectionCap">FIRE-Berechnung</p><div class="card"><table class="ledger"><tbody>';
+  h+='<p class="sectionCap">FIRE-Berechnung</p><div class="card">'+
+    '<p class="hint" style="margin-bottom:8px">Die Fixkosten '+year+' fliessen automatisch ein (spiegelt den Fixkosten-Tab). Zusätzlich lassen sich variable Jahreskosten wie Urlaub oder Essen ergänzen, die dort nicht erfasst sind.</p>'+
+    '<table class="ledger"><tbody>'+
+    '<tr><td class="labCol">Fixkosten '+year+' <span class="hint">(automatisch, siehe Fixkosten-Tab)</span></td>'+
+    '<td class="num">'+fmt(fixSum)+'</td><td></td></tr>';
   (fire.items||[]).forEach((i,ix)=>{
     h+='<tr><td class="labCol"><div class="labEdit" contenteditable="plaintext-only" data-scope="settings" data-path="fire.items.'+ix+'.label">'+esc(i.label)+'</div></td>'+
       '<td><input data-scope="settings" data-path="fire.items.'+ix+'.value" data-kind="num" value="'+fmtInp(i.value)+'"></td>'+
       '<td><button class="rowDel" data-act="delFire" data-i="'+ix+'">✕</button></td></tr>';});
   h+='<tr class="sumRow"><td>Kosten pro Jahr</td><td class="num">'+fmt(fSum)+'</td><td></td></tr></tbody></table>'+
-    '<button class="miniBtn ghost" data-act="addFire" style="margin:8px 0 4px">＋ Position</button>'+
+    '<button class="miniBtn ghost" data-act="addFire" style="margin:8px 0 4px">＋ zusätzliche Position (Urlaub, Essen, …)</button>'+
     '<div class="statLine"><span>Kosten pro Monat</span><b class="num">'+fmt(fSum/12)+'</b></div>'+
     '<div class="statLine"><span>Entnahmerate (%)</span><b><input data-scope="settings" data-path="fire.entnahmerate" data-kind="pct" value="'+fmtPct(fire.entnahmerate||0.026)+'" style="width:70px"></b></div>'+
     '<div class="statLine"><span>Benötigtes Vermögen</span><b class="num"><span class="dblRule">'+fmt(noetig)+'</span></b></div>'+
