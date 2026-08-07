@@ -782,6 +782,7 @@ function acctSaldoAt(a,mi){ const s=accountSaldi(a)[mi]; return mi===11?s+lohn13
 function renderKonten(){
   if(!years[year]){renderMonat();return;}
   const accs=Y().accounts||[];
+  const nowMiKonten=(year===String(new Date().getFullYear()))?new Date().getMonth():11;
   const nw=MONTHS.map((_,mi)=>accs.reduce((a,ac)=>a+acctSaldoAt(ac,mi),0));
   const kRendite=depotRendite(Y());
   const nwDezTotal=(nw[11]||0)+kRendite;
@@ -828,8 +829,18 @@ function renderKonten(){
         (isDayLocked?'<button class="miniBtn" data-act="unmarkDayLock" data-i="'+ai+'">Aktiv ✓</button>':'<button class="miniBtn ghost" data-act="markDayLock" data-i="'+ai+'">Aktivieren</button>')+'</div>'+
         '<div class="statLine"><span>Lohnkonto-Sync<br><span class="hint">⚠️ Überschreibt den Saldo des aktuellen Monats laufend mit dem Startkapital aus dem Monat-Tab</span></span>'+
         (isLohnkonto?'<button class="miniBtn" data-act="unmarkLohnkonto" data-i="'+ai+'">Aktiv ✓</button>':'<button class="miniBtn ghost" data-act="markLohnkonto" data-i="'+ai+'">Aktivieren</button>')+'</div>'
-      ):'')+
-      '<div class="statLine"><span>Netto gespart im Jahr (inkl. Prognose &amp; 13. Lohn falls gebucht)</span><b class="num '+(netto<0?'neg':'pos')+'">'+fmt(netto)+'</b></div>'+
+      ):'');
+    if(isLohnkonto){
+      // Kompakte Ansicht: bei aktivem Sync gibt es nichts Monatliches zu pflegen,
+      // der Wert kommt live aus dem Monat-Tab - die 12-Monats-Tabelle wäre nur
+      // Platzverschwendung ohne Zusatznutzen.
+      h+='<div class="statLine"><span>Aktueller Wert (synchronisiert)</span>'+
+        '<b class="num"><span class="dblRule">'+fmt(saldi[nowMiKonten])+'</span></b></div>'+
+        '<p class="hint" style="margin-top:4px">Wird laufend aus „Startkapital Zahlungskonto“ im Monat-Tab übernommen. '+
+        'Deaktiviere den Sync in den Optionen, falls du hier wieder monatlich manuell buchen willst.</p></div>';
+      return;
+    }
+    h+='<div class="statLine"><span>Netto gespart im Jahr (inkl. Prognose &amp; 13. Lohn falls gebucht)</span><b class="num '+(netto<0?'neg':'pos')+'">'+fmt(netto)+'</b></div>'+
       '<div class="statLine"><span>Prognose für alle Monate setzen<br><span class="hint">zum Durchspielen möglicher Szenarien</span></span>'+
       '<span style="display:flex;gap:6px;align-items:center"><input id="progAll_'+ai+'" class="miniInp" value="" placeholder="0.00">'+
       '<button class="miniBtn ghost" data-act="applyProgAll" data-i="'+ai+'">Anwenden</button></span></div>'+
