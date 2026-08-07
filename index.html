@@ -812,7 +812,7 @@ function renderKonten(){
     const badges=(a===notAcc?'<span class="pill" title="Notgroschen-Konto">★ Notgroschen</span>':'')+
       (isDepot?'<span class="pill" title="Depot-/Investitionskonto">📈 Depot</span>':'')+
       (isLohnkonto?'<span class="pill" title="Wird mit Startkapital im Monat-Tab synchronisiert">🔗 Lohnkonto-Sync</span>':'')+
-      (isDayLocked&&a!==notAcc&&!isDepot?'<span class="pill" title="Zählt aktuellen Monat erst ab Investitionstag">⏳ Tages-Sperre</span>':'');
+      (isDayLocked?'<span class="pill" title="Zählt aktuellen Monat erst ab Investitionstag">⏳ Tages-Sperre</span>':'');
     const optOpen=openAccOptions.has(a.name);
     h+='<div class="card"><div class="cardHeadRow"><h3><div class="labEdit" contenteditable="plaintext-only" data-path="accounts.'+ai+'.name" data-kind="text" style="font-family:\'Sora\',sans-serif;font-size:1.08rem">'+esc(a.name)+'</div></h3></div>'+
       (badges?'<div class="cardActions" style="margin-bottom:6px">'+badges+'</div>':'')+
