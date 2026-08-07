@@ -462,6 +462,10 @@ document.addEventListener('focusout',e=>{
       if(settings.depotAccNames?.includes(oldVal)){
         settings.depotAccNames=settings.depotAccNames.map(n=>n===oldVal?newVal:n); save('settings');
       }
+      if(settings.dayLockedAccNames?.includes(oldVal)){
+        settings.dayLockedAccNames=settings.dayLockedAccNames.map(n=>n===oldVal?newVal:n); save('settings');
+      }
+      if(settings.lohnkontoAccName===oldVal){ settings.lohnkontoAccName=newVal; save('settings'); }
     }
   }
   setPath(root,el.dataset.path,newVal);
@@ -520,8 +524,13 @@ function renderDash(){
   const nw=accs.reduce((a,ac)=>a+acctSaldoAt(ac,nowMi),0)+rendite;
   const nwStart=accs.reduce((a,ac)=>a+(ac.start||0),0);
   const gespart=accs.reduce((a,ac)=>{
-    const isDepotAcc=(settings.depotAccNames||[]).includes(ac.name);
-    return a+(ac.months||[]).reduce((x,m,mi)=>x+(monthSuppressed(mi,isDepotAcc)?0:((m.plus||0)||(m.prognose!=null?m.prognose:0)))-(m.minus||0),0)+lohn13For(ac);
+    const isDepotAcc=isDepotName(ac.name), dayLocked=isDayLockedName(ac.name);
+    return a+(ac.months||[]).reduce((x,m,mi)=>{
+      const pending=dayLocked&&monthIsCurrentPending(mi);
+      const plusEff=pending?(isDepotAcc?0:(m.plus||0)):((m.plus||0)||(m.prognose!=null?m.prognose:0));
+      const minusEff=pending?0:(m.minus||0);
+      return x+plusEff-minusEff;
+    },0)+lohn13For(ac);
   },0);
   const lohnJahr=yy.lohnJahr||Math.round(c.inc*13);
   const bonus=yy.bonus||0, bonusIncl=!!yy.bonusIncl;
@@ -655,29 +664,50 @@ function renderMonat(){
 // lohn13 wird rein rechnerisch on top des Dezember-Zuflusses berücksichtigt,
 // ohne das "+"-Feld selbst zu überschreiben (Platz für den normalen
 // Spartransfer bleibt erhalten).
-// Nur bei Depot-Konten: regelmässige Investitionen passieren erst um einen
-// bestimmten Tag im Monat (z.B. 26.). Vor diesem Tag zählt der laufende Monat
-// dort noch nicht als "eingezahlt" - das wird 1:1 durch die Depot-Rendite
-// (Depotwert minus Eingezahlt) wieder ausgeglichen, siehe depotRendite().
-// WICHTIG: Für normale Konten (Lohn, Sparen etc.) gilt das NICHT - dort gibt es
-// keine Ausgleichsrechnung, ein bereits real eingetragener Wert (z.B. weil der
-// Lohn schon eingegangen ist) muss sofort zählen, sonst fehlt Geld im Nettowert.
-function monthSuppressed(mi,isDepotAcc){
-  if(!isDepotAcc) return false;
+// Regelmässige Zu-/Abgänge passieren bei manchen Konten erst um einen
+// bestimmten Tag im Monat (z.B. 26.). Vor diesem Tag ist der laufende Monat
+// dort noch nicht wirklich passiert. Das gilt nur für explizit markierte
+// Konten (Depot / Notgroschen / manuell per "Tages-Sperre" markiert) -
+// bei normalen Konten würde das sonst bereits real eingetragene Werte
+// (z.B. weil der Lohn schon eingegangen ist) fälschlich unterschlagen.
+function isDepotName(name){ return (settings.depotAccNames||[]).includes(name); }
+function isNotgroschenName(name){
+  return settings.notgroschenAccName?settings.notgroschenAccName===name:(/sparkonto/i.test(name)&&!/steuer/i.test(name));
+}
+function isDayLockedName(name){
+  return isDepotName(name)||isNotgroschenName(name)||(settings.dayLockedAccNames||[]).includes(name);
+}
+function monthIsCurrentPending(mi){
   const now=new Date();
   if(String(year)!==String(now.getFullYear())) return false;
   return mi===now.getMonth()&&now.getDate()<(settings.depotTransferDay||26);
 }
 function accountSaldi(a){
-  const isDepotAcc=(settings.depotAccNames||[]).includes(a.name);
+  const isDepotAcc=isDepotName(a.name);
+  const dayLocked=isDayLockedName(a.name);
   let run=a.start||0; const saldi=[]; const prog=[]; const wait=[];
   (a.months||[]).forEach((m,mi)=>{
-    const suppressed=monthSuppressed(mi,isDepotAcc);
-    const usedProg=!suppressed&&!m.plus&&m.prognose!=null;
-    const plusEff=suppressed?0:((m.plus||0)||(m.prognose!=null?m.prognose:0));
-    run=Math.round((run+plusEff-(m.minus||0))*100)/100;
-    saldi.push(run); prog.push(usedProg); wait.push(suppressed);
+    const pending=dayLocked&&monthIsCurrentPending(mi);
+    // Depot: komplett gesperrt (echte Werte + Prognose), 1:1 durch die
+    // Depot-Rendite ausgeglichen. Andere Tages-gesperrte Konten: nur die
+    // Prognose wird zurückgehalten, bereits real eingetragene Werte zählen
+    // trotzdem sofort (keine Ausgleichsrechnung vorhanden).
+    const plusEff=pending?(isDepotAcc?0:(m.plus||0)):((m.plus||0)||(m.prognose!=null?m.prognose:0));
+    const minusEff=pending?0:(m.minus||0);
+    const usedProg=!m.plus&&m.prognose!=null&&plusEff===m.prognose;
+    run=Math.round((run+plusEff-minusEff)*100)/100;
+    saldi.push(run); prog.push(usedProg); wait.push(pending);
   });
+  // Lohnkonto-Sync: statt jeden Monat manuell ＋/− zu pflegen, wird für den
+  // aktuellen Kalendermonat direkt das im Monat-Tab gepflegte "Startkapital
+  // Zahlungskonto" übernommen (dort wird es ohnehin laufend aktualisiert).
+  if(settings.lohnkontoAccName===a.name){
+    const now=new Date();
+    if(String(year)===String(now.getFullYear())){
+      const mi=now.getMonth();
+      if(saldi[mi]!=null) saldi[mi]=Y().calc?.current?.start??saldi[mi];
+    }
+  }
   saldi.usedProg=prog; saldi.waiting=wait;
   return saldi;
 }
@@ -774,13 +804,21 @@ function renderKonten(){
     const minusSum=(a.months||[]).reduce((x,m)=>x+(m.minus||0),0);
     const netto=plusEffSum-minusSum+l13;
     const isDepot=depotAccs.includes(a);
+    const isDayLocked=(settings.dayLockedAccNames||[]).includes(a.name);
+    const isLohnkonto=settings.lohnkontoAccName===a.name;
     h+='<div class="card"><div class="cardHeadRow"><h3><div class="labEdit" contenteditable="plaintext-only" data-path="accounts.'+ai+'.name" data-kind="text" style="font-family:\'Sora\',sans-serif;font-size:1.08rem">'+esc(a.name)+'</div></h3></div>'+
       '<div class="cardActions">'+
-      (a===notAcc?'<span class="pill" title="Notgroschen-Konto">★ Notgroschen</span>':
+      (a===notAcc?'<span class="pill" title="Notgroschen-Konto (Tages-Sperre aktiv)">★ Notgroschen</span>':
         '<button class="miniBtn ghost" data-act="markNotgroschen" data-i="'+ai+'">Als Notgroschen markieren</button>')+
       (isDepot?'<span class="pill" title="Depot-/Investitionskonto">📈 Depot</span>'+
         '<button class="miniBtn ghost" data-act="unmarkDepot" data-i="'+ai+'">Depot entfernen</button>':
         '<button class="miniBtn ghost" data-act="markDepot" data-i="'+ai+'">Als Depot markieren</button>')+
+      (isLohnkonto?'<span class="pill" title="Wird mit Startkapital im Monat-Tab synchronisiert">🔗 Lohnkonto-Sync</span>'+
+        '<button class="miniBtn ghost" data-act="unmarkLohnkonto" data-i="'+ai+'">Sync entfernen</button>':
+        '<button class="miniBtn ghost" data-act="markLohnkonto" data-i="'+ai+'">Mit Monat-Startkapital syncen</button>')+
+      (a===notAcc||isDepot?'':(isDayLocked?'<span class="pill" title="Zählt aktuellen Monat erst ab Investitionstag">⏳ Tages-Sperre</span>'+
+        '<button class="miniBtn ghost" data-act="unmarkDayLock" data-i="'+ai+'">Tages-Sperre entfernen</button>':
+        '<button class="miniBtn ghost" data-act="markDayLock" data-i="'+ai+'">Tages-Sperre aktivieren</button>'))+
       '<button class="miniBtn danger" data-act="delAcc" data-i="'+ai+'">Löschen</button></div>'+
       '<div class="statLine"><span>Netto gespart im Jahr (inkl. Prognose &amp; 13. Lohn falls gebucht)</span><b class="num '+(netto<0?'neg':'pos')+'">'+fmt(netto)+'</b></div>'+
       '<div class="statLine"><span>Prognose für alle Monate setzen<br><span class="hint">zum Durchspielen möglicher Szenarien</span></span>'+
@@ -1175,6 +1213,23 @@ async function handleAction(d){
       const acc=yy.accounts[+d.i]; if(!acc||!settings.depotAccNames) return;
       settings.depotAccNames=settings.depotAccNames.filter(n=>n!==acc.name);
       save('settings'); toast('„'+acc.name+'“ ist kein Depot-Konto mehr'); renderTab(); return; }
+    case 'markDayLock': {
+      const acc=yy.accounts[+d.i]; if(!acc) return;
+      settings.dayLockedAccNames=settings.dayLockedAccNames||[];
+      if(!settings.dayLockedAccNames.includes(acc.name)) settings.dayLockedAccNames.push(acc.name);
+      save('settings'); toast('„'+acc.name+'“: Tages-Sperre aktiviert'); renderTab(); return; }
+    case 'unmarkDayLock': {
+      const acc=yy.accounts[+d.i]; if(!acc||!settings.dayLockedAccNames) return;
+      settings.dayLockedAccNames=settings.dayLockedAccNames.filter(n=>n!==acc.name);
+      save('settings'); toast('„'+acc.name+'“: Tages-Sperre entfernt'); renderTab(); return; }
+    case 'markLohnkonto': {
+      const acc=yy.accounts[+d.i]; if(!acc) return;
+      settings.lohnkontoAccName=acc.name;
+      save('settings'); toast('„'+acc.name+'“ mit Monat-Startkapital synchronisiert'); renderTab(); return; }
+    case 'unmarkLohnkonto': {
+      const acc=yy.accounts[+d.i]; if(!acc) return;
+      settings.lohnkontoAccName=null;
+      save('settings'); toast('Sync entfernt'); renderTab(); return; }
     case 'addAbzug': (yy.netto.items=yy.netto.items||[]).push({label:'Neu',rate:0}); break;
     case 'nettoZuLohn': {
       const netto=nettoCalc(yy.netto).n12;
