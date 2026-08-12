@@ -165,6 +165,8 @@ table.ledger tr.sumRow td{border-top:2px solid var(--rule-strong);border-bottom:
 .statLine b{font-weight:600}
 .chartBox{position:relative;width:100%;max-height:260px;min-height:200px}
 @media(min-width:900px){.chartBox{max-height:320px}}
+@media(min-width:900px){.chartBoxLg{max-height:420px}}
+@media(min-width:1300px){.chartBoxLg{max-height:480px}}
 
 /* Dezente Scrollbalken statt der grellen Browser-Standardleiste */
 .scrollX,.card{scrollbar-width:thin;scrollbar-color:var(--rule-strong) transparent}
@@ -359,7 +361,9 @@ const endLabelPlugin={
 };
 const chf=n=>fmt(n)+' Fr.';
 const fmtInp=v=>(v===''||v==null||isNaN(v))?'':Number(v).toLocaleString('de-CH',{minimumFractionDigits:2,maximumFractionDigits:2});
+const fmtIntInp=v=>(v===''||v==null||isNaN(v))?'':Number(v).toLocaleString('de-CH',{maximumFractionDigits:0});
 const pAmt=s=>{const v=parseFloat(String(s).replace(/'/g,'').replace(/,/g,'.'));return isNaN(v)?0:Math.round(v*100)/100;};
+const pInt=s=>{const v=parseFloat(String(s).replace(/'/g,'').replace(/,/g,'.'));return isNaN(v)?0:Math.round(v);};
 const pRate=s=>{const v=parseFloat(String(s).replace(/'/g,'').replace(/,/g,'.'));return isNaN(v)?0:Math.round(v*1e6)/1e6;};
 const pPct=s=>{const v=parseFloat(String(s).replace(/'/g,'').replace(/,/g,'.'));return isNaN(v)?0:Math.round(v/100*1e8)/1e8;};
 const fmtPct=v=>(v==null||v===''||isNaN(v))?'':(Number(v)*100).toLocaleString('de-CH',{maximumFractionDigits:6});
@@ -528,7 +532,7 @@ function inp(path,val,opts={}){
   if(opts.lab) return '<div class="labEdit" contenteditable="plaintext-only" '+
     'data-path="'+path+'" data-kind="text">'+esc(val)+'</div>';
   const kind=opts.kind||'num';
-  const shown=kind==='num'?fmtInp(val):kind==='pct'?fmtPct(val):(val??'');
+  const shown=kind==='num'?fmtInp(val):kind==='int'?fmtIntInp(val):kind==='pct'?fmtPct(val):(val??'');
   const ph=opts.placeholder?' placeholder="'+esc(opts.placeholder)+'"':'';
   return '<input data-path="'+path+'" data-kind="'+kind+'"'+ph+' value="'+shown+'">';
 }
@@ -562,7 +566,7 @@ document.addEventListener('focusout',e=>{
 document.addEventListener('change',e=>{
   const el=e.target; if(!el.dataset||!el.dataset.path||el.classList.contains('labEdit')) return;
   const kind=el.dataset.kind;
-  const val=kind==='num'?pAmt(el.value):kind==='rate'?pRate(el.value):kind==='pct'?pPct(el.value):kind==='bool'?el.checked:el.value;
+  const val=kind==='num'?pAmt(el.value):kind==='int'?pInt(el.value):kind==='rate'?pRate(el.value):kind==='pct'?pPct(el.value):kind==='bool'?el.checked:el.value;
   const scope=el.dataset.scope||'year';
   const root=scope==='settings'?settings:Y();
   setPath(root,el.dataset.path,val);
@@ -685,10 +689,10 @@ function renderDash(){
     '<div class="statLine" style="border:none"><span>Fortschritt</span><b class="num">'+
     (noetig?(nw/noetig*100).toFixed(1):'–')+' %</b></div></div>';
   h+='<div class="card"><h3>Vermögens-Hochrechnung ('+projYears+' Jahre)</h3>'+
-    '<div class="chartBox" style="max-height:340px"><canvas id="cProjection"></canvas></div>'+
+    '<div class="chartBox chartBoxLg"><canvas id="cProjection"></canvas></div>'+
     '<p class="hint" style="margin:2px 0 8px">Linien antippen/mit der Maus entlangfahren zeigt den Betrag pro Jahr.</p>'+
     '<div class="statLine"><span>Prognosezeitraum (Jahre)</span>'+
-    '<b><input data-scope="settings" data-path="projYears" data-kind="num" value="'+fmtInp(projYears)+'" style="width:70px"></b></div>'+
+    '<b><input data-scope="settings" data-path="projYears" data-kind="int" value="'+fmtIntInp(projYears)+'" style="width:70px"></b></div>'+
     '<div class="statLine"><span>Pessimistisch</span>'+
     '<b><input data-scope="settings" data-path="projRenditePess" data-kind="pct" value="'+fmtPct(projRenditePess)+'" style="width:70px"></b></div>'+
     '<div class="statLine"><span>Realistisch</span>'+
@@ -726,7 +730,7 @@ function renderDash(){
         backgroundColor:'transparent',borderDash:[5,4],tension:.25,borderWidth:1.75,pointRadius:0,
         pointHoverRadius:5,pointHitRadius:14}
     ]},
-    options:{layout:{padding:{right:34}},interaction:{mode:'index',intersect:false},
+    options:{layout:{padding:{right:44}},interaction:{mode:'index',intersect:false},
       plugins:{
         legend:{display:true,position:'bottom',labels:{boxWidth:12,font:{size:10}}},
         tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmt(c.parsed.y)}}
@@ -1017,7 +1021,7 @@ function renderKonten(){
   chartNW=new Chart($('cNW'),{type:'line',data:{labels:MONTHS.map(m=>m.slice(0,3)),
     datasets:[{label:'Nettowert',data:nw,borderColor:'#5B5FEF',backgroundColor:'rgba(91,95,239,.14)',
       fill:true,tension:.35,borderWidth:2.5,pointRadius:0,pointHoverRadius:5,pointHitRadius:14}]},
-    options:{layout:{padding:{right:34}},interaction:{mode:'index',intersect:false},
+    options:{layout:{padding:{right:44}},interaction:{mode:'index',intersect:false},
       plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmt(c.parsed.y)}}},
       scales:{y:{ticks:{callback:v=>Math.round(v/1000)+"k"}}}},plugins:[endLabelPlugin]});
 }
@@ -1406,7 +1410,7 @@ function renderMehr(){
         {label:'Eingezahlt',data:depotEingezahlt,borderColor:'#8B8FA8',borderDash:[4,3],fill:false,tension:.2,pointRadius:0},
         {label:'Depotwert',data:depotWerte,borderColor:'#5B5FEF',backgroundColor:'rgba(91,95,239,.14)',fill:true,tension:.25,borderWidth:2.5,spanGaps:true,pointRadius:2}
       ]},
-      options:{layout:{padding:{right:34}},interaction:{mode:'index',intersect:false},
+      options:{layout:{padding:{right:44}},interaction:{mode:'index',intersect:false},
         plugins:{legend:{display:true,labels:{boxWidth:10,font:{size:10}}},
           tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmt(c.parsed.y)}}},
         scales:{y:{ticks:{callback:v=>Math.round(v/1000)+"k"}}}},plugins:[endLabelPlugin]});
