@@ -9,81 +9,85 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#4F46E5">
+<meta name="theme-color" content="#161826">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <style>
 :root{
-  --bg:#F3F4F9; --bg-2:#EAEBF7; --card:#FFFFFF;
-  --ink:#1A1B2E; --muted:#8B8FA8; --rule:#EDEEF6; --rule-strong:#DBDDEF;
-  --primary:#5B5FEF; --primary-2:#8B5CF6; --primary-ink:#3F3FBF; --primary-soft:#EEEEFD;
-  --plus:#16A34A; --plus-soft:#E9F9EF; --minus:#E11D48; --minus-soft:#FDECEF;
-  --warn:#F59E0B; --warn-soft:#FEF3E2; --radius:20px; --radius-sm:12px;
-  --shadow:0 1px 2px rgba(26,27,46,.04), 0 8px 24px -12px rgba(26,27,46,.12);
-  --shadow-sm:0 1px 2px rgba(26,27,46,.05);
-  --on-soft:var(--primary-ink); --toast-bg:#20223D;
+  /* Nocturne-Design-System-Tokens (siehe /_ds/nocturne-*/styles.css) - dieselben
+     Variablennamen wie zuvor, damit alle bestehenden Komponenten automatisch
+     mitziehen; Nocturne ist grundsätzlich dunkel, kein separates Hellmodus-Theme. */
+  --bg:#161826; --bg-2:#1c1e2c; --card:#232532;
+  --ink:#e9e9ed; --muted:#9397ab; --rule:color-mix(in srgb,#e9e9ed 12%,transparent); --rule-strong:color-mix(in srgb,#e9e9ed 22%,transparent);
+  --primary:#9184d9; --primary-2:#a7a1db; --primary-ink:#d2cefd; --primary-soft:#423a6a;
+  --plus:#8fd6a8; --plus-soft:#16321f; --minus:#e5a3a3; --minus-soft:#3a1f24;
+  --warn:#e0b96b; --warn-soft:#3a2f18; --radius:14px; --radius-sm:8px;
+  --shadow:0 0 0 1px #3f424d, 0 6px 18px rgba(0,0,0,.5);
+  --shadow-sm:0 0 0 1px #3f424d;
+  --on-soft:#f5f4ff; --toast-bg:#292b31;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--ink);
-  min-height:100dvh;font-size:15px;line-height:1.45;
-  background-image:radial-gradient(circle at 100% 0%,rgba(91,95,239,.07),transparent 55%);
-  background-attachment:fixed}
+  min-height:100dvh;font-size:15px;line-height:1.45}
 button{font:inherit;cursor:pointer;border:none;background:none;color:inherit}
 input,select{font:inherit;color:inherit}
 .num{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums}
 .hidden{display:none!important}
-h1,h2,h3{font-family:'Sora',sans-serif;font-weight:700;line-height:1.2;letter-spacing:-.01em}
+h1,h2,h3{font-family:'Inter',sans-serif;font-weight:500;line-height:1.2;letter-spacing:-.015em}
 .pos{color:var(--plus)} .neg{color:var(--minus)}
+:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
 
 #authView{min-height:100dvh;display:flex;align-items:center;justify-content:center;
-  padding:28px 22px;background:radial-gradient(circle at 15% 8%,#7C6EF0,#5B5FEF 45%,#3F3FBF 100%);color:#F1F1FE}
-.authCard{width:100%;max-width:380px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);
-  border-radius:24px;padding:30px 26px;backdrop-filter:blur(18px);box-shadow:0 20px 50px -20px rgba(20,10,60,.5)}
-.brandMark{width:64px;height:64px;border-radius:18px;margin:0 auto 14px;display:block;box-shadow:0 6px 18px rgba(0,0,0,.25)}
+  padding:28px 22px;background:var(--bg);color:var(--ink)}
+.authCard{width:100%;max-width:380px;background:var(--card);border:1px solid var(--rule);
+  border-radius:var(--radius);padding:30px 26px;box-shadow:var(--shadow)}
+.brandMark{width:64px;height:64px;border-radius:var(--radius-sm);margin:0 auto 14px;display:block}
 .authCard h1{font-size:1.7rem;text-align:center;margin-bottom:2px}
-.authCard .sub{text-align:center;color:#D6D5FB;margin-bottom:24px;font-size:.92rem}
+.authCard .sub{text-align:center;color:var(--muted);margin-bottom:24px;font-size:.92rem}
 .field{margin-bottom:12px}
-.field label{display:block;font-size:.76rem;margin-bottom:5px;color:#C9C8F7;
+.field label{display:block;font-size:.76rem;margin-bottom:5px;color:var(--muted);
   text-transform:uppercase;letter-spacing:.06em}
-#authView .field input{width:100%;padding:12px 14px;border-radius:12px;
-  border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.09);color:#fff;outline:none;transition:border-color .15s,background .15s}
-#authView .field input:focus{border-color:#fff;background:rgba(255,255,255,.15)}
-.btn{display:block;width:100%;padding:13px;border-radius:12px;font-weight:600;text-align:center;transition:transform .15s,opacity .15s}
-.btn:active{transform:scale(.98)}
-.btnPrimary{background:#fff;color:var(--primary-ink);margin-top:6px;box-shadow:0 6px 16px -4px rgba(0,0,0,.3)}
-.btnGhost{border:1px solid rgba(255,255,255,.3);margin-top:10px;color:#fff}
+#authView .field input{width:100%;padding:12px 14px;border-radius:var(--radius-sm);
+  border:1px solid var(--rule-strong);background:var(--bg);color:var(--ink);outline:none;transition:border-color .15s,background .15s}
+#authView .field input:focus{border-color:var(--primary);background:var(--bg-2)}
+.btn{display:block;width:100%;padding:12px;border-radius:var(--radius-sm);font-weight:600;text-align:center;
+  transition:background .15s;background:transparent;border:1px solid transparent}
+.btnPrimary{color:var(--primary);border-color:var(--primary);margin-top:6px}
+.btnPrimary:hover{background:color-mix(in srgb,var(--primary) 12%,transparent)}
+.btnGhost{border:1px solid var(--rule-strong);margin-top:10px;color:var(--ink)}
+.btnGhost:hover{background:color-mix(in srgb,var(--ink) 7%,transparent)}
 .authLinks{display:flex;justify-content:space-between;margin-top:16px;font-size:.86rem}
-.authLinks button{color:#D6D5FB;text-decoration:underline;text-underline-offset:3px}
-.authErr{background:rgba(225,29,72,.25);border:1px solid rgba(255,140,160,.4);
-  padding:10px 12px;border-radius:12px;font-size:.88rem;margin-bottom:12px}
-.setupBox{background:rgba(255,255,255,.07);border:1px dashed rgba(255,255,255,.3);
-  border-radius:14px;padding:16px;font-size:.9rem;line-height:1.55}
-.setupBox code{font-family:'JetBrains Mono',monospace;font-size:.82rem;color:#E4E3FE}
+.authLinks button{color:var(--muted);text-decoration:underline;text-underline-offset:3px}
+.authErr{background:var(--minus-soft);border:1px solid var(--minus);color:var(--minus);
+  padding:10px 12px;border-radius:var(--radius-sm);font-size:.88rem;margin-bottom:12px}
+.setupBox{background:var(--bg);border:1px dashed var(--rule-strong);
+  border-radius:var(--radius-sm);padding:16px;font-size:.9rem;line-height:1.55}
+.setupBox code{font-family:'JetBrains Mono',monospace;font-size:.82rem;color:var(--primary-ink)}
 
 #appView{padding-bottom:calc(78px + env(safe-area-inset-bottom))}
-header.appHead{background:linear-gradient(120deg,#5B5FEF,#8B5CF6);color:#fff;
+header.appHead{background:var(--bg);color:var(--ink);
   padding:calc(10px + env(safe-area-inset-top)) 16px 12px;position:sticky;top:0;z-index:30;
-  box-shadow:0 4px 20px -8px rgba(91,95,239,.5)}
+  border-bottom:1px solid var(--rule)}
 .headTop{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .headBrand{display:flex;align-items:center;gap:9px;min-width:0;flex:1 1 auto;overflow:hidden}
-.headBrand img{width:30px;height:30px;border-radius:9px;box-shadow:0 2px 8px rgba(0,0,0,.2);flex:none}
-.headBrand span:not(.saveDot){font-family:'Sora',sans-serif;font-weight:700;font-size:1.1rem;letter-spacing:-.01em;
+.headBrand img{width:30px;height:30px;border-radius:var(--radius-sm);flex:none}
+.headBrand span:not(.saveDot){font-family:'Inter',sans-serif;font-weight:600;font-size:1.1rem;letter-spacing:-.01em;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
-.yearNav{display:flex;align-items:center;gap:2px;background:rgba(255,255,255,.18);
-  border:1px solid rgba(255,255,255,.28);border-radius:99px;padding:3px;overflow:hidden;flex:none}
-.yearNav .y{font-family:'Sora',sans-serif;font-weight:700;font-size:1.05rem;min-width:52px;
+.yearNav{display:flex;align-items:center;gap:2px;background:transparent;
+  border:1px solid var(--rule-strong);border-radius:var(--radius-sm);padding:3px;overflow:hidden;flex:none}
+.yearNav .y{font-family:'Inter',sans-serif;font-weight:600;font-size:1.05rem;min-width:52px;
   line-height:30px;text-align:center}
-.yearNav button{width:28px;height:28px;border-radius:50%;color:#fff;font-size:1.05rem;
+.yearNav button{width:28px;height:28px;border-radius:var(--radius-sm);color:var(--ink);font-size:1.05rem;
   opacity:.9;display:grid;place-items:center;flex:none}
-.yearNav button:hover{background:rgba(255,255,255,.2);opacity:1}
-.iconBtn{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;font-size:1.05rem;
-  background:rgba(255,255,255,.14);color:#fff;flex:none}
-.iconBtn:hover{background:rgba(255,255,255,.24)}
+.yearNav button:hover{background:color-mix(in srgb,var(--primary) 12%,transparent);opacity:1;color:var(--primary)}
+.iconBtn{width:36px;height:36px;border-radius:var(--radius-sm);display:grid;place-items:center;font-size:1.05rem;
+  background:transparent;border:1px solid var(--rule-strong);color:var(--ink);flex:none}
+.iconBtn:hover{background:color-mix(in srgb,var(--primary) 10%,transparent);border-color:var(--primary);color:var(--primary)}
 
 main{max-width:760px;margin:0 auto;padding:16px 12px 8px;transition:max-width .15s}
 .card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);
@@ -101,12 +105,15 @@ main{max-width:760px;margin:0 auto;padding:16px 12px 8px;transition:max-width .1
 .cardHeadRow{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:2px;flex-wrap:wrap}
 .cardHeadRow h3{margin:0}
 .cardActions{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
-.miniBtn{padding:8px 14px;border-radius:99px;background:var(--primary);color:#fff;
-  font-size:.82rem;font-weight:600;white-space:nowrap;transition:transform .12s,box-shadow .12s;box-shadow:0 2px 8px -2px rgba(91,95,239,.5)}
-.miniBtn:hover{transform:translateY(-1px)}
-.miniBtn:active{transform:translateY(0)}
-.miniBtn.ghost{background:var(--primary-soft);color:var(--on-soft);box-shadow:none}
-.miniBtn.danger{background:var(--minus-soft);color:var(--minus);box-shadow:none}
+.miniBtn{padding:8px 14px;border-radius:var(--radius-sm);background:transparent;color:var(--primary);
+  border:1px solid var(--primary);font-size:.82rem;font-weight:600;white-space:nowrap;transition:background .12s}
+.miniBtn:hover{background:color-mix(in srgb,var(--primary) 14%,transparent)}
+.miniBtn:active{background:color-mix(in srgb,var(--primary) 24%,transparent)}
+.miniBtn.ghost{background:transparent;color:var(--ink);border:1px solid var(--rule-strong)}
+.miniBtn.ghost:hover{background:color-mix(in srgb,var(--ink) 8%,transparent)}
+.miniBtn.danger{background:transparent;color:var(--minus);border:1px solid var(--minus)}
+.miniBtn.danger:hover{background:color-mix(in srgb,var(--minus) 14%,transparent)}
+.miniBtn[disabled]{opacity:.45;pointer-events:none}
 .hint{font-size:.82rem;color:var(--muted)}
 
 /* Tabellen */
@@ -138,15 +145,15 @@ table.ledger td.satzCol{white-space:normal;max-width:88px}
   white-space:normal;overflow-wrap:anywhere;padding:5px 7px;border-radius:8px;
   border:1px solid transparent;line-height:1.3;transition:border-color .12s,background .12s}
 .labEdit:hover{border-color:var(--rule-strong);background:var(--bg)}
-.labEdit:focus{border-color:var(--primary);background:#fff;outline:none;box-shadow:0 0 0 3px var(--primary-soft)}
+.labEdit:focus{border-color:var(--primary);background:var(--bg-2);outline:none;box-shadow:0 0 0 3px var(--primary-soft)}
 table.ledger td input:hover{border-color:var(--rule-strong);background:var(--bg)}
-table.ledger td input:focus{border-color:var(--primary);background:#fff;outline:none;box-shadow:0 0 0 3px var(--primary-soft)}
+table.ledger td input:focus{border-color:var(--primary);background:var(--bg-2);outline:none;box-shadow:0 0 0 3px var(--primary-soft)}
 table.ledger tr.sumRow td{border-top:2px solid var(--rule-strong);border-bottom:none;
   font-weight:700;padding-top:9px;color:var(--ink)}
 .dblRule{border-bottom:2px solid var(--primary);display:inline-block;font-weight:700;padding-bottom:1px}
 .kb{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;text-align:right;margin-top:12px}
 .kb .cap{font-size:.66rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
-.kb .val{font-size:1.05rem;font-weight:700;padding-top:3px;font-family:'Sora',sans-serif}
+.kb .val{font-size:1.05rem;font-weight:700;padding-top:3px;font-family:'Inter',sans-serif}
 .rowDel{color:var(--muted);font-size:.95rem;padding:3px 7px;border-radius:8px}
 .rowDel:hover{color:var(--minus);background:var(--minus-soft)}
 .reorderGrp{display:inline-flex;gap:1px;white-space:nowrap}
@@ -175,13 +182,30 @@ table.ledger tr.sumRow td{border-top:2px solid var(--rule-strong);border-bottom:
 .scrollX::-webkit-scrollbar-thumb,.card::-webkit-scrollbar-thumb{background:var(--rule-strong);border-radius:99px}
 .scrollX::-webkit-scrollbar-thumb:hover,.card::-webkit-scrollbar-thumb:hover{background:var(--muted)}
 
-nav.tabs{position:fixed;bottom:0;left:0;right:0;background:rgba(255,255,255,.92);backdrop-filter:blur(14px);
-  border-top:1px solid var(--rule-strong);display:flex;z-index:40;padding-bottom:env(safe-area-inset-bottom)}
+nav.tabs{position:fixed;bottom:0;left:0;right:0;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(14px);
+  border-top:1px solid var(--rule);display:flex;z-index:40;padding-bottom:env(safe-area-inset-bottom)}
 nav.tabs button{flex:1;padding:9px 0 6px;display:flex;flex-direction:column;align-items:center;
   gap:3px;font-size:.6rem;color:var(--muted);font-weight:600;min-width:0;transition:color .15s}
 nav.tabs button.on{color:var(--primary)}
-nav.tabs .ico{font-size:1.2rem;line-height:1;transition:transform .15s}
+nav.tabs .ico{line-height:1;transition:transform .15s;display:flex;justify-content:center}
+nav.tabs .ico svg{width:19px;height:19px}
 nav.tabs button.on .ico{transform:translateY(-2px)}
+
+/* Sidebar-Navigation (Nocturne "1b") ab Tablet/Desktop-Breite statt Bottom-Tabs */
+.sidebar{display:none}
+@media(min-width:900px){
+  nav.tabs{display:none}
+  #appView{padding-bottom:0}
+  .appBody{display:flex;align-items:flex-start}
+  .sidebar{display:flex;flex-direction:column;gap:1px;width:184px;flex:none;
+    padding:16px 10px;position:sticky;top:65px;height:calc(100dvh - 65px)}
+  .sidebar button{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:var(--radius-sm);
+    color:var(--muted);font-size:13.5px;font-weight:600;text-align:left;transition:background .12s,color .12s}
+  .sidebar button svg{width:17px;height:17px;flex:none}
+  .sidebar button:hover{background:color-mix(in srgb,var(--ink) 6%,transparent);color:var(--ink)}
+  .sidebar button.on{color:var(--primary);background:color-mix(in srgb,var(--primary) 12%,transparent)}
+  .appBody>main{flex:1;min-width:0}
+}
 .toast{position:fixed;left:50%;transform:translateX(-50%);
   bottom:calc(96px + env(safe-area-inset-bottom));background:var(--toast-bg);color:#fff;
   padding:11px 20px;border-radius:99px;font-size:.86rem;z-index:60;box-shadow:0 8px 24px -8px rgba(0,0,0,.4)}
@@ -200,7 +224,7 @@ nav.tabs button.on .ico{transform:translateY(-2px)}
 .monthChip.on{background:var(--primary);color:#fff}
 .monthChip span{white-space:nowrap}
 .monthChip input{margin:0;accent-color:#fff;width:15px;height:15px;flex:none;-webkit-appearance:checkbox;appearance:checkbox}
-h3 input.titleInp{font-family:'Sora',sans-serif;font-weight:700;font-size:1.05rem;
+h3 input.titleInp{font-family:'Inter',sans-serif;font-weight:700;font-size:1.05rem;
   border:none;background:transparent;width:100%;padding:2px 0}
 h3 input.titleInp:focus{outline:none;border-bottom:2px solid var(--primary)}
 .cardHeadRow h3{flex:1;min-width:0}
@@ -222,7 +246,7 @@ h3 input.titleInp:focus{outline:none;border-bottom:2px solid var(--primary)}
 .dashCell{background:var(--card);border:1px solid var(--rule);border-radius:var(--radius-sm);
   box-shadow:var(--shadow-sm);padding:13px}
 .dashCell .cap{font-size:.66rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
-.dashCell .val{font-size:1.2rem;font-weight:700;margin-top:4px;font-family:'Sora',sans-serif}
+.dashCell .val{font-size:1.2rem;font-weight:700;margin-top:4px;font-family:'Inter',sans-serif}
 details summary{list-style:none;cursor:pointer}
 details summary::-webkit-details-marker{display:none}
 @media(max-width:430px){
@@ -236,19 +260,6 @@ details summary::-webkit-details-marker{display:none}
   main{padding:12px 8px 8px}
 }
 @media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
-@media (prefers-color-scheme: dark){
-  :root{
-    --bg:#0F1020; --bg-2:#181A33; --card:#171933;
-    --ink:#EDEEFB; --muted:#9295BD; --rule:#242645; --rule-strong:#33366099;
-    --primary-soft:#26244F; --plus-soft:#0F2A1D; --minus-soft:#301521; --warn-soft:#2E2410;
-    --on-soft:#C7C6FF;
-  }
-  body{background-image:radial-gradient(circle at 100% 0%,rgba(91,95,239,.14),transparent 55%)}
-  nav.tabs{background:rgba(23,25,51,.9)}
-  table.ledger tbody tr:hover{background:var(--bg-2)}
-  .labEdit:hover, table.ledger td input:hover{background:var(--bg-2)}
-  .labEdit:focus, table.ledger td input:focus{background:#1E2044}
-}
 </style>
 </head>
 <body>
@@ -285,13 +296,23 @@ details summary::-webkit-details-marker{display:none}
     <div class="headTop">
       <div class="headBrand"><img src="icon-192.png" alt=""><span>Lohnkalkulation/Budget</span><span class="saveDot" id="saveDot"></span></div>
       <div class="yearNav">
-        <button id="yPrev" aria-label="Vorheriges Jahr">‹</button>
+        <button id="yPrev" aria-label="Vorheriges Jahr"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 5L9 12L15 19"/></svg></button>
         <span class="y" id="yLabel">–</span>
-        <button id="yNext" aria-label="Nächstes Jahr">›</button>
+        <button id="yNext" aria-label="Nächstes Jahr"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 5L15 12L9 19"/></svg></button>
       </div>
-      <button class="iconBtn" id="btnLogout" aria-label="Abmelden">⎋</button>
+      <button class="iconBtn" id="btnLogout" aria-label="Abmelden"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17L21 12L16 7"/><path d="M21 12H9"/></svg></button>
     </div>
   </header>
+  <div class="appBody">
+  <nav class="sidebar">
+    <button data-tab="tabDash" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11L12 5L20 11"/><path d="M6 10V19H18V10"/></svg>Übersicht</button>
+    <button data-tab="tabMonat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="16" rx="1.5"/><path d="M12 4V20"/></svg>Monat</button>
+    <button data-tab="tabKonten"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10L12 5L20 10"/><path d="M4 10H20"/><path d="M6 10V18M12 10V18M18 10V18"/><path d="M4 19H20"/></svg>Konten</button>
+    <button data-tab="tabFix"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21C12 21 5.5 14.5 5.5 9.5A6.5 6.5 0 1 1 18.5 9.5C18.5 14.5 12 21 12 21Z"/></svg>Fixkosten</button>
+    <button data-tab="tabKK"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10H21"/></svg>Karten</button>
+    <button data-tab="tabLohn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg>Lohn</button>
+    <button data-tab="tabMehr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7H20"/><circle cx="14" cy="7" r="2"/><path d="M4 12H20"/><circle cx="9" cy="12" r="2"/><path d="M4 17H20"/><circle cx="16" cy="17" r="2"/></svg>Mehr</button>
+  </nav>
   <main>
     <section id="tabDash"></section>
     <section id="tabMonat" class="hidden"></section>
@@ -301,14 +322,15 @@ details summary::-webkit-details-marker{display:none}
     <section id="tabLohn" class="hidden"></section>
     <section id="tabMehr" class="hidden"></section>
   </main>
+  </div>
   <nav class="tabs">
-    <button data-tab="tabDash" class="on"><span class="ico">🏠</span>Übersicht</button>
-    <button data-tab="tabMonat"><span class="ico">📖</span>Monat</button>
-    <button data-tab="tabKonten"><span class="ico">🏦</span>Konten</button>
-    <button data-tab="tabFix"><span class="ico">📌</span>Fixkosten</button>
-    <button data-tab="tabKK"><span class="ico">💳</span>Karten</button>
-    <button data-tab="tabLohn"><span class="ico">💰</span>Lohn</button>
-    <button data-tab="tabMehr"><span class="ico">⚙️</span>Mehr</button>
+    <button data-tab="tabDash" class="on"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11L12 5L20 11"/><path d="M6 10V19H18V10"/></svg></span>Übersicht</button>
+    <button data-tab="tabMonat"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="16" rx="1.5"/><path d="M12 4V20"/></svg></span>Monat</button>
+    <button data-tab="tabKonten"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10L12 5L20 10"/><path d="M4 10H20"/><path d="M6 10V18M12 10V18M18 10V18"/><path d="M4 19H20"/></svg></span>Konten</button>
+    <button data-tab="tabFix"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21C12 21 5.5 14.5 5.5 9.5A6.5 6.5 0 1 1 18.5 9.5C18.5 14.5 12 21 12 21Z"/></svg></span>Fixkosten</button>
+    <button data-tab="tabKK"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10H21"/></svg></span>Karten</button>
+    <button data-tab="tabLohn"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg></span>Lohn</button>
+    <button data-tab="tabMehr"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7H20"/><circle cx="14" cy="7" r="2"/><path d="M4 12H20"/><circle cx="9" cy="12" r="2"/><path d="M4 17H20"/><circle cx="16" cy="17" r="2"/></svg></span>Mehr</button>
   </nav>
 </div>
 <script>
@@ -325,6 +347,11 @@ const FIREBASE_CONFIG = {
 };
 /* ============================================================ */
 const $=id=>document.getElementById(id);
+if(window.Chart){
+  Chart.defaults.color='#9397ab';
+  Chart.defaults.font.family="'Inter', system-ui, sans-serif";
+  Chart.defaults.borderColor='rgba(233,233,237,.12)';
+}
 const configured=FIREBASE_CONFIG.apiKey && !FIREBASE_CONFIG.apiKey.startsWith("HIER_");
 const MONTHS=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
 const GROUP_NAMES=['Fixe Ausgaben','Sparen & Investieren','Rechnungen & Variables'];
@@ -502,9 +529,11 @@ $('yNext').onclick=()=>{year=String(+year+1);renderYear();};
 let activeTab='tabDash';
 let openAccOptions=new Set(); // rein lokaler UI-Zustand (nicht gespeichert): welche Konto-Optionsmenüs offen sind
 let openFixMonths=new Set(); // rein lokaler UI-Zustand: welche Fixkosten-Positionen ihre Monats-Zuordnung offen zeigen
-document.querySelectorAll('nav.tabs button').forEach(b=>b.onclick=()=>{
-  document.querySelectorAll('nav.tabs button').forEach(x=>x.classList.remove('on'));
-  b.classList.add('on'); activeTab=b.dataset.tab;
+document.querySelectorAll('nav.tabs button, .sidebar button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('nav.tabs button, .sidebar button').forEach(x=>x.classList.remove('on'));
+  document.querySelectorAll('nav.tabs button[data-tab="'+b.dataset.tab+'"], .sidebar button[data-tab="'+b.dataset.tab+'"]')
+    .forEach(x=>x.classList.add('on'));
+  activeTab=b.dataset.tab;
   ['tabDash','tabMonat','tabKonten','tabFix','tabKK','tabLohn','tabMehr'].forEach(id=>
     $(id).classList.toggle('hidden',id!==activeTab));
   renderTab(); window.scrollTo(0,0);
@@ -705,7 +734,7 @@ function renderDash(){
     ' Sparen (so wie in '+year+' voraussichtlich, inkl. Prognose &amp; 13. Lohn). '+
     (projDepotAccs.length?'Die Renditen wirken nur auf Depot-Konten, nicht auf die übrigen.':'Keine Konten als Depot markiert – die Renditen wirken aktuell auf nichts.')+
     ' In '+(+year+projYears)+' (Realistisch): '+fmt(projData[projYears])+' nominal, '+fmt(projDataReal[projYears])+' in heutiger Kaufkraft.</p></div>';
-  h+='<div class="card"><details><summary style="font-family:\'Sora\',sans-serif;font-weight:700;font-size:1.05rem;cursor:pointer">Wie wird gerechnet?</summary>'+
+  h+='<div class="card"><details><summary style="font-family:\'Inter\',sans-serif;font-weight:700;font-size:1.05rem;cursor:pointer">Wie wird gerechnet?</summary>'+
     '<div style="font-size:.88rem;line-height:1.6;margin-top:10px">'+
     '<p><b>Restguthaben Monat</b> = Startkapital + Löhne/Gutschriften − Summe aller drei Ausgabenblöcke (Monat-Tab, aktueller Monat).</p>'+
     '<p><b>Mögliches Sparen</b> = Restguthaben − '+fmt(settings.lohnkontoZiel||4000)+' Lohnkonto-Ziel (Regel 1).</p>'+
@@ -722,7 +751,7 @@ function renderDash(){
     datasets:[
       {label:'Optimistisch',data:projDataOpt,borderColor:'#4ADE80',backgroundColor:'transparent',
         tension:.25,borderWidth:1.75,pointRadius:0,pointHoverRadius:5,pointHitRadius:14},
-      {label:'Realistisch',data:projData,borderColor:'#5B5FEF',backgroundColor:'rgba(91,95,239,.14)',
+      {label:'Realistisch',data:projData,borderColor:'#9184d9',backgroundColor:'rgba(145,132,217,.14)',
         fill:true,tension:.25,borderWidth:2.5,pointRadius:0,pointHoverRadius:5,pointHitRadius:14},
       {label:'Pessimistisch',data:projDataPess,borderColor:'#F97066',backgroundColor:'transparent',
         tension:.25,borderWidth:1.75,pointRadius:0,pointHoverRadius:5,pointHitRadius:14},
@@ -958,7 +987,7 @@ function renderKonten(){
       (isLohnkonto?'<span class="pill" title="Wird mit Startkapital im Monat-Tab synchronisiert">🔗 Lohnkonto-Sync</span>':'')+
       (isDayLocked?'<span class="pill" title="Zählt aktuellen Monat erst ab Investitionstag">⏳ Tages-Sperre</span>':'');
     const optOpen=openAccOptions.has(a.name);
-    h+='<div class="card"><div class="cardHeadRow"><h3><div class="labEdit" contenteditable="plaintext-only" data-path="accounts.'+ai+'.name" data-kind="text" style="font-family:\'Sora\',sans-serif;font-size:1.08rem">'+esc(a.name)+'</div></h3></div>'+
+    h+='<div class="card"><div class="cardHeadRow"><h3><div class="labEdit" contenteditable="plaintext-only" data-path="accounts.'+ai+'.name" data-kind="text" style="font-family:\'Inter\',sans-serif;font-size:1.08rem">'+esc(a.name)+'</div></h3></div>'+
       (badges?'<div class="cardActions" style="margin-bottom:6px">'+badges+'</div>':'')+
       '<div class="cardActions">'+
       '<button class="rowDel" data-act="moveUp" data-p="accounts" data-i="'+ai+'" '+(ai===0?'disabled':'')+'>↑</button>'+
@@ -1019,7 +1048,7 @@ function renderKonten(){
   $('tabKonten').innerHTML=h;
   if(chartNW)chartNW.destroy();
   chartNW=new Chart($('cNW'),{type:'line',data:{labels:MONTHS.map(m=>m.slice(0,3)),
-    datasets:[{label:'Nettowert',data:nw,borderColor:'#5B5FEF',backgroundColor:'rgba(91,95,239,.14)',
+    datasets:[{label:'Nettowert',data:nw,borderColor:'#9184d9',backgroundColor:'rgba(145,132,217,.14)',
       fill:true,tension:.35,borderWidth:2.5,pointRadius:0,pointHoverRadius:5,pointHitRadius:14}]},
     options:{layout:{padding:{right:44}},interaction:{mode:'index',intersect:false},
       plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmt(c.parsed.y)}}},
@@ -1408,7 +1437,7 @@ function renderMehr(){
     chartDepot=new Chart($('cDepot'),{type:'line',data:{labels:MONTHS.map(m=>m.slice(0,3)),
       datasets:[
         {label:'Eingezahlt',data:depotEingezahlt,borderColor:'#8B8FA8',borderDash:[4,3],fill:false,tension:.2,pointRadius:0},
-        {label:'Depotwert',data:depotWerte,borderColor:'#5B5FEF',backgroundColor:'rgba(91,95,239,.14)',fill:true,tension:.25,borderWidth:2.5,spanGaps:true,pointRadius:2}
+        {label:'Depotwert',data:depotWerte,borderColor:'#9184d9',backgroundColor:'rgba(145,132,217,.14)',fill:true,tension:.25,borderWidth:2.5,spanGaps:true,pointRadius:2}
       ]},
       options:{layout:{padding:{right:44}},interaction:{mode:'index',intersect:false},
         plugins:{legend:{display:true,labels:{boxWidth:10,font:{size:10}}},
@@ -1421,7 +1450,7 @@ function renderMehr(){
     return a.reduce((t,ac)=>{const s=accountSaldi(ac)[11]+(ac.name===l13Konto?l13Amt:0);return t+s;},0);});
   if(chartVergleich)chartVergleich.destroy();
   chartVergleich=new Chart($('cVergleich'),{type:'bar',data:{labels:ys,
-    datasets:[{label:'Nettowert Ende Jahr',data:ends,backgroundColor:'#5B5FEF',borderRadius:8}]},
+    datasets:[{label:'Nettowert Ende Jahr',data:ends,backgroundColor:'#9184d9',borderRadius:8}]},
     options:{plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>Math.round(v/1000)+"k"}}}}});
 }
 
