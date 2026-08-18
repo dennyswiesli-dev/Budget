@@ -127,7 +127,7 @@ table.ledger th:first-child, table.ledger td:first-child{text-align:left}
 table.ledger td{padding:7px 6px;border-bottom:1px solid var(--rule);text-align:right;white-space:nowrap}
 table.ledger tbody tr:hover{background:var(--bg)}
 table.ledger td:first-child{white-space:normal;overflow-wrap:anywhere;text-align:left}
-table.ledger td input{width:94px;max-width:100%;padding:6px 7px;border:1px solid transparent;border-radius:8px;
+table.ledger td input{width:108px;max-width:100%;padding:6px 7px;border:1px solid transparent;border-radius:8px;
   background:transparent;text-align:right;font-family:'JetBrains Mono',monospace;font-size:.87rem;transition:border-color .12s,background .12s}
 input[data-path]{padding:6px 9px;border:1px solid var(--rule-strong);border-radius:8px;
   background:var(--bg);color:var(--ink);text-align:right;font-family:'JetBrains Mono',monospace;
@@ -225,7 +225,7 @@ nav.tabs button.on .ico{transform:translateY(-2px)}
 .monthChip{display:flex;flex-direction:row;align-items:center;justify-content:center;gap:5px;padding:9px 4px;
   border-radius:12px;background:var(--primary-soft);color:var(--on-soft);font-weight:600;
   font-size:.78rem;cursor:pointer;user-select:none;transition:background .15s,color .15s;
-  white-space:nowrap;overflow-wrap:normal;min-width:0}
+  white-space:nowrap;overflow-wrap:normal;min-width:0;width:100%;box-sizing:border-box}
 .monthChip.on{background:var(--primary);color:#fff}
 .monthChip span{white-space:nowrap}
 .monthChip input{margin:0;accent-color:#fff;width:15px;height:15px;flex:none;-webkit-appearance:checkbox;appearance:checkbox}
@@ -257,7 +257,7 @@ details summary::-webkit-details-marker{display:none}
 @media(max-width:430px){
   table.ledger{font-size:.82rem}
   table.ledger td{padding:5px 3px}
-  table.ledger td input{width:78px;font-size:.82rem}
+  table.ledger td input{width:96px;font-size:.82rem}
   table.ledger td.satzCol{max-width:78px}
   .miniHint{font-size:.58rem}
   table.ledger th{font-size:.6rem;padding:5px 3px}
@@ -685,7 +685,7 @@ function renderDash(){
   const lohnEffektiv=lohnJahr+(bonusIncl?bonus:0);
   const sparquote=lohnEffektiv?gespart/lohnEffektiv*100:0;
   const fire=settings.fire||{};
-  const fSum=(yy.fixkosten?.items||[]).reduce((a,i)=>a+fixItemTotal(i),0)+ccAnnualEstimate(yy)+(fire.items||[]).reduce((a,i)=>a+(i.value||0),0);
+  const fSum=fixFireTotal(yy.fixkosten||{})+ccAnnualEstimate(yy)+(fire.items||[]).reduce((a,i)=>a+(i.value||0),0);
   const noetig=fire.entnahmerate?fSum/fire.entnahmerate:0;
   const notAcc=findNotAcc(accs);
   const notSaldo=notAcc?acctSaldoAt(notAcc,nowMi):0;
@@ -769,7 +769,7 @@ function renderDash(){
     '<p><b>Zuwachs bis heute</b> = Nettowert aktuell (Stand heute) − Summe der Konten-Startsalden. Das ist ein anderer Wert als «Zuwachs Jahresende (Prognose)» im Konten-Tab, welcher den ganzen Jahresverlauf inkl. Prognose für noch nicht erreichte Monate hochrechnet.</p>'+
     '<p><b>Sparquote</b> = Gespartes ÷ Jahreslohn (optional + Bonus). Gespartes = Summe (＋ minus −) über alle Konten fürs ganze Jahr (inkl. Prognose für Monate ohne echten Wert) und 13. Lohn falls gebucht, aber <b>ohne</b> Depot-Rendite. «Zuwachs Jahresende (Prognose)» im Konten-Tab = Gespartes + Depot-Rendite. Jahreslohn editierbar oder per Button aus dem Lohn-Tab.</p>'+
     '<p><b>Notgroschen</b> = Saldo des Sparkontos (erkannt am Namen, ohne «Steuern») gegen das Ziel '+fmt(settings.notgroschenZiel||30000)+'; Balken warnt ab 80 %.</p>'+
-    '<p><b>FIRE</b> = Nettowert ÷ benötigtes Vermögen; benötigt = FIRE-Jahreskosten ÷ Entnahmerate ('+(((settings.fire||{}).entnahmerate||0.026)*100).toFixed(1)+' %). FIRE-Jahreskosten = Fixkosten '+year+' (automatisch aus dem Fixkosten-Tab) + zusätzliche Positionen unter Mehr → FIRE-Berechnung.</p>'+
+    '<p><b>FIRE</b> = Nettowert ÷ benötigtes Vermögen; benötigt = FIRE-Jahreskosten ÷ Entnahmerate ('+(((settings.fire||{}).entnahmerate||0.026)*100).toFixed(1)+' %). FIRE-Jahreskosten = Fixkosten '+year+' ohne die im Fixkosten-Tab als „Nicht für FIRE" markierten Positionen (z.B. Steuern/Militär, die ab FIRE anders/nicht mehr anfallen) + Kreditkarten + zusätzliche Positionen unter Mehr → FIRE-Berechnung.</p>'+
     '<p><b>Vermögens-Hochrechnung</b> = heutiger Kontostand, 20 Jahre fortgeschrieben, in drei Szenarien (Pessimistisch/Realistisch/Optimistisch mit je eigener Rendite). Depot-Konten wachsen jährlich um die jeweilige Rendite plus ihren eigenen Anteil am jährlichen Sparen; alle anderen Konten (Sparkonto etc.) wachsen nur um ihren Anteil am jährlichen Sparen, ohne Rendite. Die gestrichelte Linie zeigt das Realistisch-Szenario inflationsbereinigt (÷ (1+Inflation)^n), also in heutiger Kaufkraft.</p>'+
     '</div></details></div>';
   $('tabDash').innerHTML=h;
@@ -1118,35 +1118,52 @@ function fixAbgByMonth(fk){
   (fk.items||[]).forEach(i=>fixItemMonthAmounts(i).forEach((v,mi)=>arr[mi]+=(v||0)));
   return arr.map(v=>Math.round(v*100)/100);
 }
+// Summe der Positionen, die in die FIRE-Jahreskosten einfliessen (siehe
+// Mehr → FIRE-Berechnung) - z.B. Steuern oder Militär lassen sich davon
+// ausschliessen, weil sie ab FIRE ganz anders (tiefer/gar nicht) anfallen.
+// Betrifft nur die FIRE-Summe, nicht Total/Ø/Abgänge hier im Fixkosten-Tab.
+function fixFireTotal(fk){
+  return (fk.items||[]).reduce((a,i)=>a+(i.fireExcluded?0:fixItemTotal(i)),0);
+}
 function renderFix(){
   if(!years[year]){renderMonat();return;}
   const fk=Y().fixkosten;
   const sum=(fk.items||[]).reduce((a,i)=>a+fixItemTotal(i),0);
   const prevY=years[String(+year-1)];
   let h='<div class="cardGrid">';
-  h+='<div class="card"><div class="cardHeadRow"><h3>Jährliche Ausgaben</h3></div>'+
-    '<div class="cardActions"><button class="miniBtn ghost" data-act="add" data-p="fixkosten.items">＋ Position</button>'+
-    (prevY?.fixkosten?.items?.length?'<button class="miniBtn ghost" data-act="copyFixFromPrevYear">'+ic('download')+'Aus '+(+year-1)+' übernehmen</button>':'')+'</div>'+
-    '<p class="hint" style="margin:2px 0 8px">Über „Monate“ pro Position ankreuzen, in welchen Monaten der Betrag effektiv fällig wird. Ein Haken = fällt ganz in diesem Monat an, mehrere Haken = wird gleichmässig auf diese Monate gesplittet (z.B. Steuern in 3 Raten). Ohne Haken gilt Standard-Fälligkeit Januar.</p>'+
-    '<table class="ledger"><tbody>';
-  (fk.items||[]).forEach((i,ix)=>{
+  const fixItemRow=(i,ix)=>{
     const total=fixItemTotal(i);
     const open=openFixMonths.has(ix);
-    h+='<tr><td class="labCol">'+inp('fixkosten.items.'+ix+'.label',i.label,{lab:1,kind:'text'})+'</td>'+
+    let row='<tr><td class="labCol">'+inp('fixkosten.items.'+ix+'.label',i.label,{lab:1,kind:'text'})+'</td>'+
       '<td>'+inp('fixkosten.items.'+ix+'.value',i.value)+'</td>'+
       '<td colspan="2"><div class="fixActions">'+
+      '<button class="miniBtn ghost" data-act="toggleFixFire" data-i="'+ix+'" title="Für FIRE-Jahreskosten (Mehr-Tab) berücksichtigen">'+
+      (i.fireExcluded?'Nicht für FIRE':'Für FIRE')+'</button>'+
       '<button class="miniBtn ghost" data-act="toggleFixMonths" data-i="'+ix+'">'+ic('calendar')+'Monate</button>'+
       reorderBtns('fixkosten.items',ix,fk.items.length)+
       '</div></td></tr>';
     if(open){
       const flags=fixItemFlags(i);
-      h+='<tr><td colspan="4"><div class="monthGrid">'+
+      row+='<tr><td colspan="4"><div class="monthGrid">'+
         MONTHS.map((m,mi)=>'<label class="monthChip'+(flags[mi]?' on':'')+'">'+
           '<input type="checkbox" data-path="fixkosten.items.'+ix+'.flags.'+mi+'" data-kind="bool" '+(flags[mi]?'checked':'')+'>'+
           '<span>'+m.slice(0,3)+'</span></label>').join('')+
         '</div></td></tr>';
     }
-  });
+    return row;
+  };
+  const fireIn=[], fireOut=[];
+  (fk.items||[]).forEach((i,ix)=>(i.fireExcluded?fireOut:fireIn).push([i,ix]));
+  h+='<div class="card"><div class="cardHeadRow"><h3>Jährliche Ausgaben</h3></div>'+
+    '<div class="cardActions"><button class="miniBtn ghost" data-act="add" data-p="fixkosten.items">＋ Position</button>'+
+    (prevY?.fixkosten?.items?.length?'<button class="miniBtn ghost" data-act="copyFixFromPrevYear">'+ic('download')+'Aus '+(+year-1)+' übernehmen</button>':'')+'</div>'+
+    '<p class="hint" style="margin:2px 0 8px">Über „Monate“ pro Position ankreuzen, in welchen Monaten der Betrag effektiv fällig wird. Ein Haken = fällt ganz in diesem Monat an, mehrere Haken = wird gleichmässig auf diese Monate gesplittet (z.B. Steuern in 3 Raten). Ohne Haken gilt Standard-Fälligkeit Januar. Mit „Für FIRE“/„Nicht für FIRE“ legst du pro Position fest, ob sie in die FIRE-Jahreskosten (Mehr-Tab) einfliesst - z.B. weil Steuern oder Militär ab dem FIRE-Zeitpunkt ganz anders/gar nicht mehr anfallen. Total, Ø/Monat und die Abgänge unten betreffen weiterhin alle Positionen.</p>'+
+    '<table class="ledger"><tbody>';
+  fireIn.forEach(([i,ix])=>h+=fixItemRow(i,ix));
+  if(fireOut.length){
+    h+='<tr><td colspan="4" class="sectionCap" style="margin:14px 0 2px">Nicht für FIRE (z.B. Steuern, Militär)</td></tr>';
+    fireOut.forEach(([i,ix])=>h+=fixItemRow(i,ix));
+  }
   h+=tplPicker('fixkosten.items','fixkosten','fix');
   h+='<tr class="sumRow"><td>Total pro Jahr</td><td class="num"><span class="dblRule">'+fmt(sum)+'</span></td><td></td><td></td></tr>';
   h+='</tbody></table>'+
@@ -1344,7 +1361,8 @@ function renderMehr(){
   const yy=years[year]||emptyYear();
   if(years[year]&&!yy.depotwerte) yy.depotwerte=Array(12).fill(null);
   const fire=settings.fire||{items:[],entnahmerate:0.026};
-  const fixSum=(yy.fixkosten?.items||[]).reduce((a,i)=>a+fixItemTotal(i),0);
+  const fixSum=fixFireTotal(yy.fixkosten||{});
+  const fixSumAll=(yy.fixkosten?.items||[]).reduce((a,i)=>a+fixItemTotal(i),0);
   const ccSum=ccAnnualEstimate(yy);
   const fireExtraSum=(fire.items||[]).reduce((a,i)=>a+(i.value||0),0);
   const fSum=fixSum+ccSum+fireExtraSum;
@@ -1405,7 +1423,7 @@ function renderMehr(){
   h+='<p class="sectionCap">FIRE-Berechnung</p><div class="card">'+
     '<p class="hint" style="margin-bottom:8px">Fixkosten und Kreditkarten fliessen automatisch ein (spiegeln Fixkosten- bzw. Kreditkarten-Tab; bei unvollständigem Jahr wird Ø/Monat × 12 hochgerechnet). Zusätzlich lassen sich variable Jahreskosten wie Urlaub oder Essen ergänzen, die dort nicht erfasst sind.</p>'+
     '<table class="ledger"><tbody>'+
-    '<tr><td class="labCol">Fixkosten '+year+' <span class="hint">(automatisch, siehe Fixkosten-Tab)</span></td>'+
+    '<tr><td class="labCol">Fixkosten '+year+' <span class="hint">(automatisch, nur „Für FIRE“-Positionen'+(fixSumAll>fixSum?' – '+fmt(fixSumAll-fixSum)+' ausgeschlossen':'')+', siehe Fixkosten-Tab)</span></td>'+
     '<td class="num">'+fmt(fixSum)+'</td><td></td></tr>'+
     '<tr><td class="labCol">Kreditkarten <span class="hint">(automatisch, Ø/Monat × 12)</span></td>'+
     '<td class="num">'+fmt(ccSum)+'</td><td></td></tr>';
@@ -1498,6 +1516,9 @@ async function handleAction(d){
       if(!Array.isArray(it.flags)||it.flags.length!==12){ it.flags=fixItemFlags(it); save(year); }
       if(openFixMonths.has(ix)) openFixMonths.delete(ix); else openFixMonths.add(ix);
       renderTab(); return; }
+    case 'toggleFixFire': {
+      const ix=+d.i; const it=yy.fixkosten.items[ix]; if(!it) return;
+      it.fireExcluded=!it.fireExcluded; save(year); renderTab(); return; }
     case 'addFromTpl': {
       const list=(settings.templates||{})[d.pool]||[];
       const sel=document.getElementById(d.sel); if(!sel) return;
