@@ -366,26 +366,33 @@ let chartNW=null, chartVergleich=null, chartProjection=null, chartDepot=null;
 
 const fmt=n=>(n==null||isNaN(n))?'–':Number(n).toLocaleString('de-CH',{minimumFractionDigits:2,maximumFractionDigits:2});
 // Chart.js-Plugin: schreibt den Endwert jeder Linie als kleines Label neben
-// deren letzten Punkt (in derselben Farbe), abwechselnd leicht versetzt,
-// damit sich eng beieinanderliegende Linien nicht überlappen.
+// deren letzten Punkt (in derselben Farbe). Labels werden nach ihrer echten
+// y-Position sortiert und bei Bedarf auseinandergeschoben, damit eng
+// beieinanderliegende Linien (z.B. auf dem schmalen Mobile-Chart) sich nicht
+// überlappen - ein simpler abwechselnder Versatz reicht dafür nicht.
 const endLabelPlugin={
   id:'endLabel',
   afterDatasetsDraw(chart){
     const {ctx}=chart;
+    const labels=[];
     chart.data.datasets.forEach((ds,di)=>{
       const meta=chart.getDatasetMeta(di);
       if(meta.hidden||!meta.data.length) return;
       const pt=meta.data[meta.data.length-1];
       const v=ds.data[ds.data.length-1];
       if(v==null) return;
-      ctx.save();
-      ctx.font='600 10px Inter, sans-serif';
-      ctx.fillStyle=ds.borderColor;
-      ctx.textBaseline='middle';
-      const dy=(di%2===0?-7:7);
-      ctx.fillText(Math.round(v/1000)+'k',pt.x+6,pt.y+dy);
-      ctx.restore();
+      labels.push({x:pt.x,y:pt.y,color:ds.borderColor,text:Math.round(v/1000)+'k'});
     });
+    labels.sort((a,b)=>a.y-b.y);
+    const minGap=12;
+    for(let i=1;i<labels.length;i++){
+      if(labels[i].y-labels[i-1].y<minGap) labels[i].y=labels[i-1].y+minGap;
+    }
+    ctx.save();
+    ctx.font='600 10px Inter, sans-serif';
+    ctx.textBaseline='middle';
+    labels.forEach(l=>{ ctx.fillStyle=l.color; ctx.fillText(l.text,l.x+6,l.y); });
+    ctx.restore();
   }
 };
 const chf=n=>fmt(n)+' Fr.';
