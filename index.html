@@ -214,7 +214,10 @@ nav.tabs button.on .ico{transform:translateY(-2px)}
 .saveDot{width:8px;height:8px;border-radius:50%;background:#4ADE80;display:inline-block;
   margin-left:6px;opacity:0;transition:opacity .3s;box-shadow:0 0 0 3px rgba(74,222,128,.25)}
 .saveDot.on{opacity:1}
-.pill{font-size:.7rem;background:var(--primary-soft);border-radius:99px;padding:3px 10px;color:var(--on-soft);font-weight:600}
+.pill{font-size:.7rem;background:var(--primary-soft);border-radius:99px;padding:3px 10px;color:var(--on-soft);font-weight:600;
+  display:inline-flex;align-items:center;gap:4px}
+.btnIco{width:13px;height:13px;flex:none;vertical-align:-2px;margin-right:3px}
+.miniBtn .btnIco{margin-right:5px}
 .fixActions{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:flex-end}
 .monthGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:8px 0;width:100%;box-sizing:border-box}
 @media(min-width:420px){.monthGrid{grid-template-columns:repeat(4,1fr)}}
@@ -349,6 +352,21 @@ const FIREBASE_CONFIG = {
 };
 /* ============================================================ */
 const $=id=>document.getElementById(id);
+// Inline-Icons (Phosphor-artig, gleicher Stroke-Stil wie die Tab-Navigation)
+// statt Emoji in Buttons/Badges - über den Namen abrufbar, erbt Textfarbe.
+const ICON_PATHS={
+  gear:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 0 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3a2 2 0 0 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3a2 2 0 0 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9a1.7 1.7 0 0 0 1.55 1H21a2 2 0 0 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1Z"/>',
+  calendar:'<rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9.5H21"/><path d="M8 2.5V6.5"/><path d="M16 2.5V6.5"/>',
+  star:'<path d="M12 2.5L14.9 8.7L21.6 9.5L16.8 14.2L18 20.9L12 17.6L6 20.9L7.2 14.2L2.4 9.5L9.1 8.7Z"/>',
+  trend:'<path d="M3 17L9.5 10.5L13.5 14.5L21 6.5"/><path d="M14.5 6.5H21V13"/>',
+  link:'<path d="M10 14a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.5 1.5"/><path d="M14 10a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.5-1.5"/>',
+  hourglass:'<path d="M6 3H18"/><path d="M6 21H18"/><path d="M6 3C6 8 12 9 12 12C12 15 6 16 6 21"/><path d="M18 3C18 8 12 9 12 12C12 15 18 16 18 21"/>',
+  download:'<path d="M12 3V15"/><path d="M7 10L12 15L17 10"/><path d="M4 17V19A2 2 0 0 0 6 21H18A2 2 0 0 0 20 19V17"/>',
+  warn:'<path d="M12 3.5L22 20.5H2Z"/><path d="M12 10V15"/><path d="M12 18.3V18.4"/>'
+};
+function ic(name){
+  return '<svg class="btnIco" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'+(ICON_PATHS[name]||'')+'</svg>';
+}
 if(window.Chart){
   Chart.defaults.color='#9397ab';
   Chart.defaults.font.family="'Inter', system-ui, sans-serif";
@@ -991,17 +1009,17 @@ function renderKonten(){
     const isDepot=depotAccs.includes(a);
     const isDayLocked=isDayLockedName(a.name);
     const isLohnkonto=settings.lohnkontoAccName===a.name;
-    const badges=(a===notAcc?'<span class="pill" title="Notgroschen-Konto">★ Notgroschen</span>':'')+
-      (isDepot?'<span class="pill" title="Depot-/Investitionskonto">📈 Depot</span>':'')+
-      (isLohnkonto?'<span class="pill" title="Wird mit Startkapital im Monat-Tab synchronisiert">🔗 Lohnkonto-Sync</span>':'')+
-      (isDayLocked?'<span class="pill" title="Zählt aktuellen Monat erst ab Investitionstag">⏳ Tages-Sperre</span>':'');
+    const badges=(a===notAcc?'<span class="pill" title="Notgroschen-Konto">'+ic('star')+'Notgroschen</span>':'')+
+      (isDepot?'<span class="pill" title="Depot-/Investitionskonto">'+ic('trend')+'Depot</span>':'')+
+      (isLohnkonto?'<span class="pill" title="Wird mit Startkapital im Monat-Tab synchronisiert">'+ic('link')+'Lohnkonto-Sync</span>':'')+
+      (isDayLocked?'<span class="pill" title="Zählt aktuellen Monat erst ab Investitionstag">'+ic('hourglass')+'Tages-Sperre</span>':'');
     const optOpen=openAccOptions.has(a.name);
     h+='<div class="card"><div class="cardHeadRow"><h3><div class="labEdit" contenteditable="plaintext-only" data-path="accounts.'+ai+'.name" data-kind="text" style="font-family:\'Inter\',sans-serif;font-size:1.08rem">'+esc(a.name)+'</div></h3></div>'+
       (badges?'<div class="cardActions" style="margin-bottom:6px">'+badges+'</div>':'')+
       '<div class="cardActions">'+
       '<button class="rowDel" data-act="moveUp" data-p="accounts" data-i="'+ai+'" '+(ai===0?'disabled':'')+'>↑</button>'+
       '<button class="rowDel" data-act="moveDown" data-p="accounts" data-i="'+ai+'" '+(ai===accs.length-1?'disabled':'')+'>↓</button>'+
-      '<button class="miniBtn ghost" data-act="toggleAccOptions" data-name="'+esc(a.name)+'">⚙️ Optionen</button>'+
+      '<button class="miniBtn ghost" data-act="toggleAccOptions" data-name="'+esc(a.name)+'">'+ic('gear')+'Optionen</button>'+
       '<button class="miniBtn danger" data-act="delAcc" data-i="'+ai+'">Löschen</button></div>'+
       (optOpen?(
         '<div class="statLine"><span>Notgroschen-Konto</span>'+
@@ -1010,7 +1028,7 @@ function renderKonten(){
         (isDepot?'<button class="miniBtn" data-act="unmarkDepot" data-i="'+ai+'">Aktiv ✓</button>':'<button class="miniBtn ghost" data-act="markDepot" data-i="'+ai+'">Aktivieren</button>')+'</div>'+
         '<div class="statLine"><span>Tages-Sperre<br><span class="hint">Zu-/Abgänge im laufenden Monat zählen erst ab dem Investitionstag (siehe Mehr → Depot-Wertentwicklung)</span></span>'+
         (isDayLocked?'<button class="miniBtn" data-act="unmarkDayLock" data-i="'+ai+'">Aktiv ✓</button>':'<button class="miniBtn ghost" data-act="markDayLock" data-i="'+ai+'">Aktivieren</button>')+'</div>'+
-        '<div class="statLine"><span>Lohnkonto-Sync<br><span class="hint">⚠️ Überschreibt den Saldo des aktuellen Monats laufend mit dem Startkapital aus dem Monat-Tab</span></span>'+
+        '<div class="statLine"><span>Lohnkonto-Sync<br><span class="hint">'+ic('warn')+'Überschreibt den Saldo des aktuellen Monats laufend mit dem Startkapital aus dem Monat-Tab</span></span>'+
         (isLohnkonto?'<button class="miniBtn" data-act="unmarkLohnkonto" data-i="'+ai+'">Aktiv ✓</button>':'<button class="miniBtn ghost" data-act="markLohnkonto" data-i="'+ai+'">Aktivieren</button>')+'</div>'
       ):'');
     if(isLohnkonto){
@@ -1040,7 +1058,7 @@ function renderKonten(){
         '<td>'+inp('accounts.'+ai+'.months.'+mi+'.plus',m.plus||'')+'</td>'+
         '<td>'+inp('accounts.'+ai+'.months.'+mi+'.minus',m.minus||'')+'</td>'+
         '<td class="num">'+fmt(saldi[mi])+(saldi.usedProg[mi]?' <span class="pill" title="Basiert auf Prognose, noch kein echter Wert erfasst">Ø</span>':'')+
-        (saldi.waiting[mi]?' <span class="pill" title="Tages-Sperre aktiv: zählt erst ab dem Investitionstag">⏳</span>':'')+'</td></tr>';
+        (saldi.waiting[mi]?' <span class="pill" title="Tages-Sperre aktiv: zählt erst ab dem Investitionstag">'+ic('hourglass')+'</span>':'')+'</td></tr>';
     });
     if(l13) h+='<tr><td class="labCol">13. Lohn</td><td></td>'+
       '<td class="num pos">'+fmt(l13)+'</td><td></td>'+
@@ -1108,8 +1126,8 @@ function renderFix(){
   let h='<div class="cardGrid">';
   h+='<div class="card"><div class="cardHeadRow"><h3>Jährliche Ausgaben</h3></div>'+
     '<div class="cardActions"><button class="miniBtn ghost" data-act="add" data-p="fixkosten.items">＋ Position</button>'+
-    (prevY?.fixkosten?.items?.length?'<button class="miniBtn ghost" data-act="copyFixFromPrevYear">📥 Aus '+(+year-1)+' übernehmen</button>':'')+'</div>'+
-    '<p class="hint" style="margin:2px 0 8px">Über „📅 Monate“ pro Position ankreuzen, in welchen Monaten der Betrag effektiv fällig wird. Ein Haken = fällt ganz in diesem Monat an, mehrere Haken = wird gleichmässig auf diese Monate gesplittet (z.B. Steuern in 3 Raten). Ohne Haken gilt Standard-Fälligkeit Januar.</p>'+
+    (prevY?.fixkosten?.items?.length?'<button class="miniBtn ghost" data-act="copyFixFromPrevYear">'+ic('download')+'Aus '+(+year-1)+' übernehmen</button>':'')+'</div>'+
+    '<p class="hint" style="margin:2px 0 8px">Über „Monate“ pro Position ankreuzen, in welchen Monaten der Betrag effektiv fällig wird. Ein Haken = fällt ganz in diesem Monat an, mehrere Haken = wird gleichmässig auf diese Monate gesplittet (z.B. Steuern in 3 Raten). Ohne Haken gilt Standard-Fälligkeit Januar.</p>'+
     '<table class="ledger"><tbody>';
   (fk.items||[]).forEach((i,ix)=>{
     const total=fixItemTotal(i);
@@ -1117,7 +1135,7 @@ function renderFix(){
     h+='<tr><td class="labCol">'+inp('fixkosten.items.'+ix+'.label',i.label,{lab:1,kind:'text'})+'</td>'+
       '<td>'+inp('fixkosten.items.'+ix+'.value',i.value)+'</td>'+
       '<td colspan="2"><div class="fixActions">'+
-      '<button class="miniBtn ghost" data-act="toggleFixMonths" data-i="'+ix+'">📅 Monate</button>'+
+      '<button class="miniBtn ghost" data-act="toggleFixMonths" data-i="'+ix+'">'+ic('calendar')+'Monate</button>'+
       reorderBtns('fixkosten.items',ix,fk.items.length)+
       '</div></td></tr>';
     if(open){
