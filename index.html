@@ -410,11 +410,11 @@ const configured=FIREBASE_CONFIG.apiKey && !FIREBASE_CONFIG.apiKey.startsWith("H
 const MONTHS=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
 const GROUP_NAMES=['Fixe Ausgaben','Sparen & Investieren','Rechnungen & Variables'];
 let db=null,auth=null,uid=null;
-let settings={currency:'CHF',lohnkontoZiel:4000,notgroschenZiel:30000,rules:[],fire:{items:[],entnahmerate:0.026,vermoegen:0},templates:{monat:[],fixkosten:[]}};
+let settings={currency:'CHF',lohnkontoZiel:4000,notgroschenZiel:30000,rules:[],fire:{items:[],entnahmerate:0.026,vermoegen:0,birthYear:null,retireAge:60,lifeExpectancy:90,pensionAnnual:0,pensionStartAge:65},templates:{monat:[],fixkosten:[]}};
 let years={};            // {'2026': {...}}
 let year=String(new Date().getFullYear());
 let dirty={};            // zu speichernde Docs
-let chartNW=null, chartVergleich=null, chartProjection=null, chartDepot=null;
+let chartNW=null, chartVergleich=null, chartProjection=null, chartDepot=null, chartLifecycle=null;
 
 const fmt=n=>(n==null||isNaN(n))?'–':Number(n).toLocaleString('de-CH',{minimumFractionDigits:2,maximumFractionDigits:2});
 // Chart.js-Plugin: schreibt den Endwert jeder Linie als kleines Label neben
@@ -703,6 +703,17 @@ function bar(pct,warnAt){
   const cls=pct>=100?'':(warnAt&&pct>=warnAt?'warn':'');
   return '<div class="bar '+cls+'"><i style="width:'+Math.min(100,Math.max(0,pct))+'%"></i></div>';
 }
+// Jährlicher Netto-Zufluss eines Kontos (＋ − −, inkl. Prognose & 13. Lohn) -
+// von renderDash (Sparquote) und der FIRE-Lebenszyklus-Simulation genutzt.
+function acctGespart(ac){
+  const dayLocked=isDayLockedName(ac.name);
+  return (ac.months||[]).reduce((x,m,mi)=>{
+    const pending=dayLocked&&monthIsCurrentPending(mi);
+    const plusEff=pending?0:((m.plus||0)||(m.prognose!=null?m.prognose:0));
+    const minusEff=pending?0:(m.minus||0);
+    return x+plusEff-minusEff;
+  },0)+lohn13For(ac);
+}
 function renderDash(){
   if(!years[year]){renderMonat();$('tabDash').innerHTML=$('tabMonat').innerHTML;return;}
   const yy=Y();
@@ -712,15 +723,6 @@ function renderDash(){
   const rendite=depotRendite(yy);
   const nw=accs.reduce((a,ac)=>a+acctSaldoAt(ac,nowMi),0)+rendite;
   const nwStart=accs.reduce((a,ac)=>a+(ac.start||0),0);
-  const acctGespart=ac=>{
-    const dayLocked=isDayLockedName(ac.name);
-    return (ac.months||[]).reduce((x,m,mi)=>{
-      const pending=dayLocked&&monthIsCurrentPending(mi);
-      const plusEff=pending?0:((m.plus||0)||(m.prognose!=null?m.prognose:0));
-      const minusEff=pending?0:(m.minus||0);
-      return x+plusEff-minusEff;
-    },0)+lohn13For(ac);
-  };
   const gespart=accs.reduce((a,ac)=>a+acctGespart(ac),0);
   const lohnJahr=yy.lohnJahr||Math.round(c.inc*13);
   const bonus=yy.bonus||0, bonusIncl=!!yy.bonusIncl;
@@ -1498,8 +1500,78 @@ function renderFireTab(){
     '<div class="statLine"><span>Entnahmerate (%)</span><b><input data-scope="settings" data-path="fire.entnahmerate" data-kind="pct" value="'+fmtPct(fire.entnahmerate||0.026)+'" style="width:70px"></b></div>'+
     '<div class="statLine"><span>Benötigtes Vermögen</span><b class="num"><span class="dblRule">'+fmt(noetig)+'</span></b></div>'+
     '<div class="statLine"><span>Ziel-Vermögen</span><b><input data-scope="settings" data-path="fire.vermoegen" data-kind="num" value="'+fmtInp(fire.vermoegen||0)+'" style="width:110px"></b></div></div>';
+
+  // FIRE-Lebenszyklus: Ansparphase (wie Vermögens-Hochrechnung) + Entsparphase
+  // (Kosten − AHV/PK-Rente ab Rentenalter) bis zur Lebenserwartung.
+  const nowMi2=(year===String(new Date().getFullYear()))?new Date().getMonth():11;
+  const accs2=yy.accounts||[];
+  const rendite2=depotRendite(yy);
+  const nw2=accs2.reduce((a,ac)=>a+acctSaldoAt(ac,nowMi2),0)+rendite2;
+  const depotAccs2=findDepotAccs(accs2);
+  const depotToday2=depotAccs2.reduce((a,ac)=>a+acctSaldoAt(ac,nowMi2),0)+rendite2;
+  const otherToday2=nw2-depotToday2;
+  const depotGespart2=depotAccs2.reduce((a,ac)=>a+acctGespart(ac),0);
+  const otherGespart2=accs2.reduce((a,ac)=>a+acctGespart(ac),0)-depotGespart2;
+  const projRendite2=settings.projRendite||0;
+  const projInflation2=settings.projInflation!=null?settings.projInflation:0.02;
+  const birthYear=fire.birthYear||null;
+  const retireAge=fire.retireAge||60;
+  const lifeExpectancy=fire.lifeExpectancy||90;
+  const pensionAnnual=fire.pensionAnnual||0;
+  const pensionStartAge=fire.pensionStartAge||65;
+  const curAge=birthYear?(+year-birthYear):null;
+  let fireYear=null, lifeSim=[], sustainable=null, depleteAge=null;
+  if(curAge!=null&&curAge>=0){
+    let vd=depotToday2, vo=otherToday2, costs=fSum;
+    const maxAge=Math.max(lifeExpectancy,curAge)+1;
+    for(let a=curAge;a<=maxAge;a++){
+      const nwYear=vd+vo;
+      if(fireYear==null&&nwYear>=noetig) fireYear=+year+(a-curAge);
+      const retired=(fireYear!=null)&&(a>= (fireYear-+year+curAge));
+      lifeSim.push({age:a,year:+year+(a-curAge),nw:Math.round(nwYear),retired});
+      if(a===maxAge) break;
+      if(retired){
+        const pension=a>=pensionStartAge?pensionAnnual:0;
+        const need=Math.max(0,costs-pension);
+        const pool=vd+vo;
+        const poolAfter=pool*(1+projRendite2)-need;
+        if(poolAfter<0&&depleteAge==null&&a<lifeExpectancy) depleteAge=a+1;
+        vd=Math.max(0,poolAfter); vo=0;
+      } else {
+        vd=vd*(1+projRendite2)+depotGespart2; vo=vo+otherGespart2;
+      }
+      costs=costs*(1+projInflation2);
+    }
+    sustainable=depleteAge==null;
+  }
+  h+='<p class="sectionCap">FIRE-Lebenszyklus</p><div class="card">'+
+    '<p class="hint" style="margin-bottom:8px">Simuliert Ansparphase (wie Vermögens-Hochrechnung) und Entsparphase ab Erreichen des Zielvermögens: In der Entsparphase werden die FIRE-Kosten (inflationsbereinigt) abzüglich AHV/PK-Rente (ab Rentenbeginn) entnommen, der Rest wächst weiter mit der realistischen Rendite.</p>'+
+    '<div class="statLine"><span>Geburtsjahr</span><b><input data-scope="settings" data-path="fire.birthYear" data-kind="int" value="'+(birthYear?fmtIntInp(birthYear):'')+'" placeholder="z.B. 1995" style="width:90px"></b></div>'+
+    '<div class="statLine"><span>Rentenalter (AHV/PK)</span><b><input data-scope="settings" data-path="fire.pensionStartAge" data-kind="int" value="'+fmtIntInp(pensionStartAge)+'" style="width:70px"></b></div>'+
+    '<div class="statLine"><span>AHV/PK-Rente pro Jahr (ab Rentenalter)</span><b><input data-scope="settings" data-path="fire.pensionAnnual" data-kind="num" value="'+fmtInp(pensionAnnual)+'" style="width:110px"></b></div>'+
+    '<div class="statLine"><span>Lebenserwartung (Alter)</span><b><input data-scope="settings" data-path="fire.lifeExpectancy" data-kind="int" value="'+fmtIntInp(lifeExpectancy)+'" style="width:70px"></b></div>';
+  if(curAge==null){
+    h+='<p class="hint" style="margin-top:8px">Geburtsjahr eingeben, um voraussichtliches FIRE-Jahr und Nachhaltigkeit bis zur Lebenserwartung zu berechnen.</p>';
+  } else {
+    h+='<div class="statLine"><span>Voraussichtliches FIRE-Jahr</span><b class="num">'+(fireYear?fireYear+' (Alter '+(fireYear-(+year-curAge))+')':'> '+(+year+ (lifeExpectancy-curAge))+' (nicht innert Lebenserwartung erreicht)')+'</b></div>'+
+      '<div class="statLine" style="border:none"><span>Nachhaltig bis Lebenserwartung ('+lifeExpectancy+')</span><b class="num '+(sustainable?'pos':'neg')+'">'+(sustainable?'Ja ✓':'Nein – Vermögen reicht nur bis Alter '+depleteAge)+'</b></div>';
+  }
+  h+='</div>';
+  if(curAge!=null&&lifeSim.length){
+    h+='<p class="sectionCap">Vermögensverlauf über die Lebenszeit</p><div class="card"><div class="chartBox chartBoxLg"><canvas id="cLifecycle"></canvas></div></div>';
+  }
+
   h+='<p class="sectionCap">Jahresvergleich</p><div class="card"><div class="chartBox"><canvas id="cVergleich"></canvas></div></div>';
   $('tabFire').innerHTML=h;
+  if(curAge!=null&&lifeSim.length){
+    if(chartLifecycle)chartLifecycle.destroy();
+    chartLifecycle=new Chart($('cLifecycle'),{type:'line',data:{
+      labels:lifeSim.map(p=>p.age),
+      datasets:[{label:'Vermögen',data:lifeSim.map(p=>p.nw),borderColor:'#9184d9',backgroundColor:'rgba(145,132,217,.15)',fill:true,tension:.25,pointRadius:0,borderWidth:2}]},
+      options:{plugins:{legend:{display:false}},scales:{
+        x:{title:{display:true,text:'Alter'}},
+        y:{ticks:{callback:v=>Math.round(v/1000)+"k"}}}}});
+  }
   const ys=Object.keys(years).sort();
   const ends=ys.map(y=>{const yd=years[y]; const a=(yd.accounts||[]);
     const l13Konto=yd.netto?.lohn13Konto, l13Amt=yd.netto?.lohn13Applied||0;
