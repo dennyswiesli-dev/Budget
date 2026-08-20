@@ -1533,10 +1533,16 @@ function renderFireTab(){
       if(retired){
         const pension=a>=pensionStartAge?pensionAnnual:0;
         const need=Math.max(0,costs-pension);
-        const pool=vd+vo;
-        const poolAfter=pool*(1+projRendite2)-need;
-        if(poolAfter<0&&depleteAge==null&&a<lifeExpectancy) depleteAge=a+1;
-        vd=Math.max(0,poolAfter); vo=0;
+        // Entnahme zuerst aus dem nicht wachsenden Cash-Anteil, danach aus dem
+        // Depot - das Depot wächst weiter mit der Rendite (wie in der Ansparphase),
+        // der Cash-Anteil bleibt weiterhin unverzinst statt beim Pensionsstart
+        // plötzlich mit voller Rendite zu wachsen.
+        const fromCash=Math.min(vo,need);
+        const fromDepot=need-fromCash;
+        vo=vo-fromCash;
+        const depotAfter=vd*(1+projRendite2)-fromDepot;
+        if(depotAfter<0&&depleteAge==null&&a<lifeExpectancy) depleteAge=a+1;
+        vd=Math.max(0,depotAfter);
       } else {
         vd=vd*(1+projRendite2)+depotGespart2; vo=vo+otherGespart2;
       }
