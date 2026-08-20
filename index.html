@@ -1513,6 +1513,8 @@ function renderFireTab(){
   const depotGespart2=depotAccs2.reduce((a,ac)=>a+acctGespart(ac),0);
   const otherGespart2=accs2.reduce((a,ac)=>a+acctGespart(ac),0)-depotGespart2;
   const projRendite2=settings.projRendite||0;
+  const projRenditePess2=settings.projRenditePess!=null?settings.projRenditePess:Math.max(0,projRendite2-0.02);
+  const projRenditeOpt2=settings.projRenditeOpt!=null?settings.projRenditeOpt:projRendite2+0.02;
   const projInflation2=settings.projInflation!=null?settings.projInflation:0.02;
   const birthYear=fire.birthYear||null;
   const retireAge=fire.retireAge||60;
@@ -1520,15 +1522,19 @@ function renderFireTab(){
   const pensionAnnual=fire.pensionAnnual||0;
   const pensionStartAge=fire.pensionStartAge||65;
   const curAge=birthYear?(+year-birthYear):null;
-  let fireYear=null, lifeSim=[], sustainable=null, depleteAge=null;
-  if(curAge!=null&&curAge>=0){
-    let vd=depotToday2, vo=otherToday2, costs=fSum;
+  // Simuliert die Ansparphase (wie Vermögens-Hochrechnung) und die Entsparphase ab
+  // Erreichen des Zielvermögens für eine gegebene Rendite-Annahme. Entnommen werden
+  // die tatsächlichen (inflationsbereinigten) FIRE-Jahreskosten aus der Berechnung
+  // oben, nicht nur ein fixer Prozentsatz - die Entnahmerate bestimmt lediglich das
+  // Zielvermögen, nicht die effektive jährliche Entnahme.
+  function simLifecycle(rate){
+    let vd=depotToday2, vo=otherToday2, costs=fSum, fireYr=null, depleteAg=null, sim=[];
     const maxAge=Math.max(lifeExpectancy,curAge)+1;
     for(let a=curAge;a<=maxAge;a++){
       const nwYear=vd+vo;
-      if(fireYear==null&&nwYear>=noetig) fireYear=+year+(a-curAge);
-      const retired=(fireYear!=null)&&(a>= (fireYear-+year+curAge));
-      lifeSim.push({age:a,year:+year+(a-curAge),nw:Math.round(nwYear),retired});
+      if(fireYr==null&&nwYear>=noetig) fireYr=+year+(a-curAge);
+      const retired=(fireYr!=null)&&(a>=(fireYr-+year+curAge));
+      sim.push({age:a,year:+year+(a-curAge),nw:Math.round(nwYear),retired});
       if(a===maxAge) break;
       if(retired){
         const pension=a>=pensionStartAge?pensionAnnual:0;
@@ -1540,18 +1546,25 @@ function renderFireTab(){
         const fromCash=Math.min(vo,need);
         const fromDepot=need-fromCash;
         vo=vo-fromCash;
-        const depotAfter=vd*(1+projRendite2)-fromDepot;
-        if(depotAfter<0&&depleteAge==null&&a<lifeExpectancy) depleteAge=a+1;
+        const depotAfter=vd*(1+rate)-fromDepot;
+        if(depotAfter<0&&depleteAg==null&&a<lifeExpectancy) depleteAg=a+1;
         vd=Math.max(0,depotAfter);
       } else {
-        vd=vd*(1+projRendite2)+depotGespart2; vo=vo+otherGespart2;
+        vd=vd*(1+rate)+depotGespart2; vo=vo+otherGespart2;
       }
       costs=costs*(1+projInflation2);
     }
-    sustainable=depleteAge==null;
+    return {sim,fireYr,sustainable:depleteAg==null,depleteAg};
+  }
+  let fireYear=null, lifeSim=[], sustainable=null, depleteAge=null, simPess=null, simOpt=null;
+  if(curAge!=null&&curAge>=0){
+    const r=simLifecycle(projRendite2);
+    lifeSim=r.sim; fireYear=r.fireYr; sustainable=r.sustainable; depleteAge=r.depleteAg;
+    simPess=simLifecycle(projRenditePess2);
+    simOpt=simLifecycle(projRenditeOpt2);
   }
   h+='<p class="sectionCap">FIRE-Lebenszyklus</p><div class="card">'+
-    '<p class="hint" style="margin-bottom:8px">Simuliert Ansparphase (wie Vermögens-Hochrechnung) und Entsparphase ab Erreichen des Zielvermögens: In der Entsparphase werden die FIRE-Kosten (inflationsbereinigt) abzüglich AHV/PK-Rente (ab Rentenbeginn) entnommen, der Rest wächst weiter mit der realistischen Rendite.</p>'+
+    '<p class="hint" style="margin-bottom:8px">Simuliert Ansparphase (wie Vermögens-Hochrechnung) und Entsparphase ab Erreichen des Zielvermögens: Entnommen werden ab dann jährlich die tatsächlichen FIRE-Kosten von oben (inflationsbereinigt) abzüglich AHV/PK-Rente (ab Rentenbeginn) - die Entnahmerate bestimmt nur das Zielvermögen, nicht die effektive Entnahme. Wie bei der Vermögens-Hochrechnung mit Pessimistisch/Realistisch/Optimistisch gerechnet.</p>'+
     '<div class="statLine"><span>Geburtsjahr</span><b><input data-scope="settings" data-path="fire.birthYear" data-kind="int" value="'+(birthYear?fmtIntInp(birthYear):'')+'" placeholder="z.B. 1995" style="width:90px"></b></div>'+
     '<div class="statLine"><span>Rentenalter (AHV/PK)</span><b><input data-scope="settings" data-path="fire.pensionStartAge" data-kind="int" value="'+fmtIntInp(pensionStartAge)+'" style="width:70px"></b></div>'+
     '<div class="statLine"><span>AHV/PK-Rente pro Jahr (ab Rentenalter)</span><b><input data-scope="settings" data-path="fire.pensionAnnual" data-kind="num" value="'+fmtInp(pensionAnnual)+'" style="width:110px"></b></div>'+
@@ -1564,7 +1577,8 @@ function renderFireTab(){
   }
   h+='</div>';
   if(curAge!=null&&lifeSim.length){
-    h+='<p class="sectionCap">Vermögensverlauf über die Lebenszeit</p><div class="card"><div class="chartBox chartBoxLg"><canvas id="cLifecycle"></canvas></div></div>';
+    h+='<p class="sectionCap">Vermögensverlauf über die Lebenszeit</p><div class="card"><div class="chartBox chartBoxLg"><canvas id="cLifecycle"></canvas></div>'+
+      '<p class="hint" style="margin:2px 0 0">Linien antippen/mit der Maus entlangfahren zeigt den Betrag pro Alter für alle drei Szenarien.</p></div>';
   }
 
   h+='<p class="sectionCap">Jahresvergleich</p><div class="card"><div class="chartBox"><canvas id="cVergleich"></canvas></div></div>';
@@ -1573,10 +1587,19 @@ function renderFireTab(){
     if(chartLifecycle)chartLifecycle.destroy();
     chartLifecycle=new Chart($('cLifecycle'),{type:'line',data:{
       labels:lifeSim.map(p=>p.age),
-      datasets:[{label:'Vermögen',data:lifeSim.map(p=>p.nw),borderColor:'#9184d9',backgroundColor:'rgba(145,132,217,.15)',fill:true,tension:.25,pointRadius:0,borderWidth:2}]},
-      options:{plugins:{legend:{display:false}},scales:{
-        x:{title:{display:true,text:'Alter'}},
-        y:{ticks:{callback:v=>Math.round(v/1000)+"k"}}}}});
+      datasets:[
+        {label:'Pessimistisch',data:simPess.sim.map(p=>p.nw),borderColor:'#e0a458',backgroundColor:'transparent',tension:.25,pointRadius:0,pointHitRadius:12,borderWidth:2},
+        {label:'Realistisch',data:lifeSim.map(p=>p.nw),borderColor:'#9184d9',backgroundColor:'rgba(145,132,217,.15)',fill:true,tension:.25,pointRadius:0,pointHitRadius:12,borderWidth:2},
+        {label:'Optimistisch',data:simOpt.sim.map(p=>p.nw),borderColor:'#5fbf8f',backgroundColor:'transparent',tension:.25,pointRadius:0,pointHitRadius:12,borderWidth:2}
+      ]},
+      options:{interaction:{mode:'index',intersect:false},
+        plugins:{legend:{display:true,position:'bottom',labels:{boxWidth:12}},
+          tooltip:{callbacks:{title:items=>'Alter '+items[0].label,label:it=>it.dataset.label+': '+fmt(it.parsed.y)}}},
+        layout:{padding:{right:44}},
+        scales:{
+          x:{title:{display:true,text:'Alter'}},
+          y:{ticks:{callback:v=>Math.round(v/1000)+"k"}}}},
+      plugins:[endLabelPlugin]});
   }
   const ys=Object.keys(years).sort();
   const ends=ys.map(y=>{const yd=years[y]; const a=(yd.accounts||[]);
