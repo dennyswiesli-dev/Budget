@@ -207,7 +207,23 @@ nav.tabs button.on .ico{transform:translateY(-2px)}
   .sidebar button:hover{background:color-mix(in srgb,var(--ink) 6%,transparent);color:var(--ink)}
   .sidebar button.on{color:var(--primary);background:color-mix(in srgb,var(--primary) 12%,transparent)}
   .appBody>main{flex:1;min-width:0}
+  .hamburgerBtn,.drawer,.drawerBackdrop{display:none!important}
 }
+.sidebarDivider{height:1px;background:var(--rule);margin:8px 6px}
+
+/* Hamburger-Menü (Handy/Tablet <900px): zusätzliche Bereiche (Investitionen,
+   FIRE, Einstellungen) leben hier statt die Bottom-Tab-Leiste zu überladen. */
+.drawerBackdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:95}
+.drawer{position:fixed;top:0;left:0;bottom:0;width:250px;max-width:82vw;background:var(--card);
+  z-index:96;display:flex;flex-direction:column;gap:1px;padding:calc(16px + env(safe-area-inset-top)) 10px 16px;
+  overflow-y:auto;transform:translateX(-100%);transition:transform .22s ease;box-shadow:var(--shadow-md)}
+.drawer.open{transform:translateX(0)}
+.drawer button{display:flex;align-items:center;gap:11px;padding:11px 12px;border-radius:var(--radius-sm);
+  color:var(--muted);font-size:14.5px;font-weight:600;text-align:left;transition:background .12s,color .12s}
+.drawer button svg{width:18px;height:18px;flex:none}
+.drawer button:hover{background:color-mix(in srgb,var(--ink) 6%,transparent);color:var(--ink)}
+.drawer button.on{color:var(--primary);background:color-mix(in srgb,var(--primary) 12%,transparent)}
+.drawerDivider{height:1px;background:var(--rule);margin:8px 8px}
 .toast{position:fixed;left:50%;transform:translateX(-50%);
   bottom:calc(96px + min(34px,env(safe-area-inset-bottom)));background:var(--toast-bg);color:#fff;
   padding:11px 20px;border-radius:99px;font-size:.86rem;z-index:60;box-shadow:0 8px 24px -8px rgba(0,0,0,.4)}
@@ -299,6 +315,7 @@ details summary::-webkit-details-marker{display:none}
 <div id="appView" class="hidden">
   <header class="appHead">
     <div class="headTop">
+      <button class="iconBtn hamburgerBtn" id="btnHamburger" aria-label="Menü öffnen"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6H21"/><path d="M3 12H21"/><path d="M3 18H21"/></svg></button>
       <div class="headBrand"><img src="icon-192.png" alt=""><span>Lohnkalkulation/Budget</span><span class="saveDot" id="saveDot"></span></div>
       <div class="yearNav">
         <button id="yPrev" aria-label="Vorheriges Jahr"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 5L9 12L15 19"/></svg></button>
@@ -308,6 +325,19 @@ details summary::-webkit-details-marker{display:none}
       <button class="iconBtn" id="btnLogout" aria-label="Abmelden"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17L21 12L16 7"/><path d="M21 12H9"/></svg></button>
     </div>
   </header>
+  <div class="drawerBackdrop hidden" id="drawerBackdrop"></div>
+  <nav class="drawer" id="drawer">
+    <button data-tab="tabDash" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11L12 5L20 11"/><path d="M6 10V19H18V10"/></svg>Übersicht</button>
+    <button data-tab="tabMonat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="16" rx="1.5"/><path d="M12 4V20"/></svg>Monat</button>
+    <button data-tab="tabKonten"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10L12 5L20 10"/><path d="M4 10H20"/><path d="M6 10V18M12 10V18M18 10V18"/><path d="M4 19H20"/></svg>Konten</button>
+    <button data-tab="tabFix"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21C12 21 5.5 14.5 5.5 9.5A6.5 6.5 0 1 1 18.5 9.5C18.5 14.5 12 21 12 21Z"/></svg>Fixkosten</button>
+    <button data-tab="tabKK"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10H21"/></svg>Karten</button>
+    <button data-tab="tabLohn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg>Lohn</button>
+    <div class="drawerDivider"></div>
+    <button data-tab="tabInv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17L9.5 10.5L13.5 14.5L21 6.5"/><path d="M14.5 6.5H21V13"/></svg>Investitionen</button>
+    <button data-tab="tabFire"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5C12 2.5 6.5 9 6.5 14A5.5 5.5 0 0 0 17.5 14C17.5 11.2 15.5 9.2 14.5 7.2C14.5 9.2 12.5 9.2 12.5 7.2C12.5 5.2 12 2.5 12 2.5Z"/></svg>FIRE</button>
+    <button data-tab="tabSettings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15A1.7 1.7 0 0 0 21 12A1.7 1.7 0 0 0 19.4 9A1.7 1.7 0 0 0 17.7 6.6A1.7 1.7 0 0 0 15 5A1.7 1.7 0 0 0 12 3A1.7 1.7 0 0 0 9 5A1.7 1.7 0 0 0 6.3 6.6A1.7 1.7 0 0 0 4.6 9A1.7 1.7 0 0 0 3 12A1.7 1.7 0 0 0 4.6 15A1.7 1.7 0 0 0 6.3 17.4A1.7 1.7 0 0 0 9 19A1.7 1.7 0 0 0 12 21A1.7 1.7 0 0 0 15 19A1.7 1.7 0 0 0 17.7 17.4A1.7 1.7 0 0 0 19.4 15Z"/></svg>Einstellungen</button>
+  </nav>
   <div class="appBody">
   <nav class="sidebar">
     <button data-tab="tabDash" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11L12 5L20 11"/><path d="M6 10V19H18V10"/></svg>Übersicht</button>
@@ -316,7 +346,10 @@ details summary::-webkit-details-marker{display:none}
     <button data-tab="tabFix"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21C12 21 5.5 14.5 5.5 9.5A6.5 6.5 0 1 1 18.5 9.5C18.5 14.5 12 21 12 21Z"/></svg>Fixkosten</button>
     <button data-tab="tabKK"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10H21"/></svg>Karten</button>
     <button data-tab="tabLohn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg>Lohn</button>
-    <button data-tab="tabMehr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7H20"/><circle cx="14" cy="7" r="2"/><path d="M4 12H20"/><circle cx="9" cy="12" r="2"/><path d="M4 17H20"/><circle cx="16" cy="17" r="2"/></svg>Mehr</button>
+    <div class="sidebarDivider"></div>
+    <button data-tab="tabInv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17L9.5 10.5L13.5 14.5L21 6.5"/><path d="M14.5 6.5H21V13"/></svg>Investitionen</button>
+    <button data-tab="tabFire"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5C12 2.5 6.5 9 6.5 14A5.5 5.5 0 0 0 17.5 14C17.5 11.2 15.5 9.2 14.5 7.2C14.5 9.2 12.5 9.2 12.5 7.2C12.5 5.2 12 2.5 12 2.5Z"/></svg>FIRE</button>
+    <button data-tab="tabSettings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15A1.7 1.7 0 0 0 21 12A1.7 1.7 0 0 0 19.4 9A1.7 1.7 0 0 0 17.7 6.6A1.7 1.7 0 0 0 15 5A1.7 1.7 0 0 0 12 3A1.7 1.7 0 0 0 9 5A1.7 1.7 0 0 0 6.3 6.6A1.7 1.7 0 0 0 4.6 9A1.7 1.7 0 0 0 3 12A1.7 1.7 0 0 0 4.6 15A1.7 1.7 0 0 0 6.3 17.4A1.7 1.7 0 0 0 9 19A1.7 1.7 0 0 0 12 21A1.7 1.7 0 0 0 15 19A1.7 1.7 0 0 0 17.7 17.4A1.7 1.7 0 0 0 19.4 15Z"/></svg>Einstellungen</button>
   </nav>
   <main>
     <section id="tabDash"></section>
@@ -325,7 +358,9 @@ details summary::-webkit-details-marker{display:none}
     <section id="tabFix" class="hidden"></section>
     <section id="tabKK" class="hidden"></section>
     <section id="tabLohn" class="hidden"></section>
-    <section id="tabMehr" class="hidden"></section>
+    <section id="tabInv" class="hidden"></section>
+    <section id="tabFire" class="hidden"></section>
+    <section id="tabSettings" class="hidden"></section>
   </main>
   </div>
   <nav class="tabs">
@@ -335,7 +370,6 @@ details summary::-webkit-details-marker{display:none}
     <button data-tab="tabFix"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21C12 21 5.5 14.5 5.5 9.5A6.5 6.5 0 1 1 18.5 9.5C18.5 14.5 12 21 12 21Z"/></svg></span>Fixkosten</button>
     <button data-tab="tabKK"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10H21"/></svg></span>Karten</button>
     <button data-tab="tabLohn"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg></span>Lohn</button>
-    <button data-tab="tabMehr"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7H20"/><circle cx="14" cy="7" r="2"/><path d="M4 12H20"/><circle cx="9" cy="12" r="2"/><path d="M4 17H20"/><circle cx="16" cy="17" r="2"/></svg></span>Mehr</button>
   </nav>
 </div>
 <script>
@@ -556,15 +590,21 @@ $('yNext').onclick=()=>{year=String(+year+1);renderYear();};
 let activeTab='tabDash';
 let openAccOptions=new Set(); // rein lokaler UI-Zustand (nicht gespeichert): welche Konto-Optionsmenüs offen sind
 let openFixMonths=new Set(); // rein lokaler UI-Zustand: welche Fixkosten-Positionen ihre Monats-Zuordnung offen zeigen
-document.querySelectorAll('nav.tabs button, .sidebar button').forEach(b=>b.onclick=()=>{
-  document.querySelectorAll('nav.tabs button, .sidebar button').forEach(x=>x.classList.remove('on'));
-  document.querySelectorAll('nav.tabs button[data-tab="'+b.dataset.tab+'"], .sidebar button[data-tab="'+b.dataset.tab+'"]')
+const TAB_IDS=['tabDash','tabMonat','tabKonten','tabFix','tabKK','tabLohn','tabInv','tabFire','tabSettings'];
+const NAV_BTN_SEL='nav.tabs button, .sidebar button, .drawer button';
+document.querySelectorAll(NAV_BTN_SEL).forEach(b=>b.onclick=()=>{
+  document.querySelectorAll(NAV_BTN_SEL).forEach(x=>x.classList.remove('on'));
+  document.querySelectorAll('nav.tabs button[data-tab="'+b.dataset.tab+'"], .sidebar button[data-tab="'+b.dataset.tab+'"], .drawer button[data-tab="'+b.dataset.tab+'"]')
     .forEach(x=>x.classList.add('on'));
   activeTab=b.dataset.tab;
-  ['tabDash','tabMonat','tabKonten','tabFix','tabKK','tabLohn','tabMehr'].forEach(id=>
-    $(id).classList.toggle('hidden',id!==activeTab));
+  TAB_IDS.forEach(id=>$(id).classList.toggle('hidden',id!==activeTab));
+  closeDrawer();
   renderTab(); window.scrollTo(0,0);
 });
+function openDrawer(){ $('drawer').classList.add('open'); $('drawerBackdrop').classList.remove('hidden'); }
+function closeDrawer(){ $('drawer').classList.remove('open'); $('drawerBackdrop').classList.add('hidden'); }
+$('btnHamburger').onclick=openDrawer;
+$('drawerBackdrop').onclick=closeDrawer;
 function renderYear(){ $('yLabel').textContent=year; renderTab(); }
 function renderTab(){
   // Neu-Rendern ersetzt das gesamte Tab-DOM; ohne diese Rettung springt der
@@ -576,7 +616,9 @@ function renderTab(){
   else if(activeTab==='tabFix')renderFix();
   else if(activeTab==='tabKK')renderKK();
   else if(activeTab==='tabLohn')renderLohn();
-  else renderMehr();
+  else if(activeTab==='tabInv')renderInv();
+  else if(activeTab==='tabFire')renderFireTab();
+  else renderSettings();
   window.scrollTo(0,sy);
 }
 
@@ -726,7 +768,7 @@ function renderDash(){
       '<div class="val num '+(nw-nwStart<0?'neg':'pos')+'">'+fmt(nw-nwStart)+'</div></div>'+
     '</div>';
   if(rendite) h+='<p class="hint" style="margin:6px 6px 0">Im Nettowert enthalten: Depot-Kursgewinn/-verlust '+
-    '<b class="num '+(rendite<0?'neg':'pos')+'">'+fmt(rendite)+'</b> (Stand letzter erfasster Depotwert, siehe Mehr → Depot-Wertentwicklung).</p>';
+    '<b class="num '+(rendite<0?'neg':'pos')+'">'+fmt(rendite)+'</b> (Stand letzter erfasster Depotwert, siehe Investitionen → Depot-Wertentwicklung).</p>';
   h+='<div class="card" style="margin-top:12px"><h3>Sparquote '+year+'</h3>'+
     '<div class="statLine"><span>Gespart (alle Konten, ＋ − −, inkl. 13. Lohn falls gebucht)</span><b class="num pos">'+fmt(gespart)+'</b></div>'+
     '<div class="statLine"><span>Jahreslohn (editierbar)</span><b>'+inp('lohnJahr',lohnJahr)+'</b></div>'+
@@ -769,7 +811,7 @@ function renderDash(){
     '<p><b>Zuwachs bis heute</b> = Nettowert aktuell (Stand heute) − Summe der Konten-Startsalden. Das ist ein anderer Wert als «Zuwachs Jahresende (Prognose)» im Konten-Tab, welcher den ganzen Jahresverlauf inkl. Prognose für noch nicht erreichte Monate hochrechnet.</p>'+
     '<p><b>Sparquote</b> = Gespartes ÷ Jahreslohn (optional + Bonus). Gespartes = Summe (＋ minus −) über alle Konten fürs ganze Jahr (inkl. Prognose für Monate ohne echten Wert) und 13. Lohn falls gebucht, aber <b>ohne</b> Depot-Rendite. «Zuwachs Jahresende (Prognose)» im Konten-Tab = Gespartes + Depot-Rendite. Jahreslohn editierbar oder per Button aus dem Lohn-Tab.</p>'+
     '<p><b>Notgroschen</b> = Saldo des Sparkontos (erkannt am Namen, ohne «Steuern») gegen das Ziel '+fmt(settings.notgroschenZiel||30000)+'; Balken warnt ab 80 %.</p>'+
-    '<p><b>FIRE</b> = Nettowert ÷ benötigtes Vermögen; benötigt = FIRE-Jahreskosten ÷ Entnahmerate ('+(((settings.fire||{}).entnahmerate||0.026)*100).toFixed(1)+' %). FIRE-Jahreskosten = Fixkosten '+year+' ohne die im Fixkosten-Tab als „Nicht für FIRE" markierten Positionen (z.B. Steuern/Militär, die ab FIRE anders/nicht mehr anfallen) + Kreditkarten + zusätzliche Positionen unter Mehr → FIRE-Berechnung.</p>'+
+    '<p><b>FIRE</b> = Nettowert ÷ benötigtes Vermögen; benötigt = FIRE-Jahreskosten ÷ Entnahmerate ('+(((settings.fire||{}).entnahmerate||0.026)*100).toFixed(1)+' %). FIRE-Jahreskosten = Fixkosten '+year+' ohne die im Fixkosten-Tab als „Nicht für FIRE" markierten Positionen (z.B. Steuern/Militär, die ab FIRE anders/nicht mehr anfallen) + Kreditkarten + zusätzliche Positionen unter FIRE → FIRE-Berechnung.</p>'+
     '<p><b>Vermögens-Hochrechnung</b> = heutiger Kontostand, 20 Jahre fortgeschrieben, in drei Szenarien (Pessimistisch/Realistisch/Optimistisch mit je eigener Rendite). Depot-Konten wachsen jährlich um die jeweilige Rendite plus ihren eigenen Anteil am jährlichen Sparen; alle anderen Konten (Sparkonto etc.) wachsen nur um ihren Anteil am jährlichen Sparen, ohne Rendite. Die gestrichelte Linie zeigt das Realistisch-Szenario inflationsbereinigt (÷ (1+Inflation)^n), also in heutiger Kaufkraft.</p>'+
     '</div></details></div>';
   $('tabDash').innerHTML=h;
@@ -1026,7 +1068,7 @@ function renderKonten(){
         (a===notAcc?'<button class="miniBtn" data-act="unmarkNotgroschen" data-i="'+ai+'">Aktiv ✓</button>':'<button class="miniBtn ghost" data-act="markNotgroschen" data-i="'+ai+'">Aktivieren</button>')+'</div>'+
         '<div class="statLine"><span>Depot-/Investitionskonto</span>'+
         (isDepot?'<button class="miniBtn" data-act="unmarkDepot" data-i="'+ai+'">Aktiv ✓</button>':'<button class="miniBtn ghost" data-act="markDepot" data-i="'+ai+'">Aktivieren</button>')+'</div>'+
-        '<div class="statLine"><span>Tages-Sperre<br><span class="hint">Zu-/Abgänge im laufenden Monat zählen erst ab dem Investitionstag (siehe Mehr → Depot-Wertentwicklung)</span></span>'+
+        '<div class="statLine"><span>Tages-Sperre<br><span class="hint">Zu-/Abgänge im laufenden Monat zählen erst ab dem Investitionstag (siehe Investitionen → Depot-Wertentwicklung)</span></span>'+
         (isDayLocked?'<button class="miniBtn" data-act="unmarkDayLock" data-i="'+ai+'">Aktiv ✓</button>':'<button class="miniBtn ghost" data-act="markDayLock" data-i="'+ai+'">Aktivieren</button>')+'</div>'+
         '<div class="statLine"><span>Lohnkonto-Sync<br><span class="hint">'+ic('warn')+'Überschreibt den Saldo des aktuellen Monats laufend mit dem Startkapital aus dem Monat-Tab</span></span>'+
         (isLohnkonto?'<button class="miniBtn" data-act="unmarkLohnkonto" data-i="'+ai+'">Aktiv ✓</button>':'<button class="miniBtn ghost" data-act="markLohnkonto" data-i="'+ai+'">Aktivieren</button>')+'</div>'
@@ -1119,7 +1161,7 @@ function fixAbgByMonth(fk){
   return arr.map(v=>Math.round(v*100)/100);
 }
 // Summe der Positionen, die in die FIRE-Jahreskosten einfliessen (siehe
-// Mehr → FIRE-Berechnung) - z.B. Steuern oder Militär lassen sich davon
+// FIRE-Tab) - z.B. Steuern oder Militär lassen sich davon
 // ausschliessen, weil sie ab FIRE ganz anders (tiefer/gar nicht) anfallen.
 // Betrifft nur die FIRE-Summe, nicht Total/Ø/Abgänge hier im Fixkosten-Tab.
 function fixFireTotal(fk){
@@ -1137,7 +1179,7 @@ function renderFix(){
     let row='<tr><td class="labCol">'+inp('fixkosten.items.'+ix+'.label',i.label,{lab:1,kind:'text'})+'</td>'+
       '<td>'+inp('fixkosten.items.'+ix+'.value',i.value)+'</td>'+
       '<td colspan="2"><div class="fixActions">'+
-      '<button class="miniBtn ghost" data-act="toggleFixFire" data-i="'+ix+'" title="Für FIRE-Jahreskosten (Mehr-Tab) berücksichtigen">'+
+      '<button class="miniBtn ghost" data-act="toggleFixFire" data-i="'+ix+'" title="Für FIRE-Jahreskosten (FIRE-Tab) berücksichtigen">'+
       (i.fireExcluded?'Nicht für FIRE':'Für FIRE')+'</button>'+
       '<button class="miniBtn ghost" data-act="toggleFixMonths" data-i="'+ix+'">'+ic('calendar')+'Monate</button>'+
       reorderBtns('fixkosten.items',ix,fk.items.length)+
@@ -1157,7 +1199,7 @@ function renderFix(){
   h+='<div class="card"><div class="cardHeadRow"><h3>Jährliche Ausgaben</h3></div>'+
     '<div class="cardActions"><button class="miniBtn ghost" data-act="add" data-p="fixkosten.items">＋ Position</button>'+
     (prevY?.fixkosten?.items?.length?'<button class="miniBtn ghost" data-act="copyFixFromPrevYear">'+ic('download')+'Aus '+(+year-1)+' übernehmen</button>':'')+'</div>'+
-    '<p class="hint" style="margin:2px 0 8px">Über „Monate“ pro Position ankreuzen, in welchen Monaten der Betrag effektiv fällig wird. Ein Haken = fällt ganz in diesem Monat an, mehrere Haken = wird gleichmässig auf diese Monate gesplittet (z.B. Steuern in 3 Raten). Ohne Haken gilt Standard-Fälligkeit Januar. Mit „Für FIRE“/„Nicht für FIRE“ legst du pro Position fest, ob sie in die FIRE-Jahreskosten (Mehr-Tab) einfliesst - z.B. weil Steuern oder Militär ab dem FIRE-Zeitpunkt ganz anders/gar nicht mehr anfallen. Total, Ø/Monat und die Abgänge unten betreffen weiterhin alle Positionen.</p>'+
+    '<p class="hint" style="margin:2px 0 8px">Über „Monate“ pro Position ankreuzen, in welchen Monaten der Betrag effektiv fällig wird. Ein Haken = fällt ganz in diesem Monat an, mehrere Haken = wird gleichmässig auf diese Monate gesplittet (z.B. Steuern in 3 Raten). Ohne Haken gilt Standard-Fälligkeit Januar. Mit „Für FIRE“/„Nicht für FIRE“ legst du pro Position fest, ob sie in die FIRE-Jahreskosten (FIRE-Tab) einfliesst - z.B. weil Steuern oder Militär ab dem FIRE-Zeitpunkt ganz anders/gar nicht mehr anfallen. Total, Ø/Monat und die Abgänge unten betreffen weiterhin alle Positionen.</p>'+
     '<table class="ledger"><tbody>';
   fireIn.forEach(([i,ix])=>h+=fixItemRow(i,ix));
   if(fireOut.length){
@@ -1357,16 +1399,9 @@ function renderLohn(){
 }
 
 /* ================= MEHR ================= */
-function renderMehr(){
+function renderInv(){
   const yy=years[year]||emptyYear();
   if(years[year]&&!yy.depotwerte) yy.depotwerte=Array(12).fill(null);
-  const fire=settings.fire||{items:[],entnahmerate:0.026};
-  const fixSum=fixFireTotal(yy.fixkosten||{});
-  const fixSumAll=(yy.fixkosten?.items||[]).reduce((a,i)=>a+fixItemTotal(i),0);
-  const ccSum=ccAnnualEstimate(yy);
-  const fireExtraSum=(fire.items||[]).reduce((a,i)=>a+(i.value||0),0);
-  const fSum=fixSum+ccSum+fireExtraSum;
-  const noetig=fire.entnahmerate?fSum/fire.entnahmerate:0;
   let h='<p class="sectionCap">Grössere Anschaffungen '+year+'</p><div class="card">'+
     '<p class="hint" style="margin-bottom:8px">Einmalige grössere Käufe (Möbel, Geräte etc.) – für laufende Aktien-/Fondsinvestitionen siehe „Depot-Wertentwicklung“ unten, basierend auf deinen als Depot markierten Konten.</p>'+
     '<table class="ledger"><tbody>';
@@ -1420,7 +1455,30 @@ function renderMehr(){
         'Trag hier zusätzlich monatlich den tatsächlichen Depotwert ein (z. B. aus der Broker-App) – die Rendite ergibt sich aus Depotwert minus Einzahlungen.</p></div>';
     }
   }
-  h+='<p class="sectionCap">FIRE-Berechnung</p><div class="card">'+
+  $('tabInv').innerHTML=h;
+  if(chartDepot)chartDepot.destroy();
+  if(depotEingezahlt&&$('cDepot')){
+    chartDepot=new Chart($('cDepot'),{type:'line',data:{labels:MONTHS.map(m=>m.slice(0,3)),
+      datasets:[
+        {label:'Eingezahlt',data:depotEingezahlt,borderColor:'#8B8FA8',borderDash:[4,3],fill:false,tension:.2,pointRadius:0},
+        {label:'Depotwert',data:depotWerte,borderColor:'#9184d9',backgroundColor:'rgba(145,132,217,.14)',fill:true,tension:.25,borderWidth:2.5,spanGaps:true,pointRadius:2}
+      ]},
+      options:{layout:{padding:{right:44}},interaction:{mode:'index',intersect:false},
+        plugins:{legend:{display:true,labels:{boxWidth:10,font:{size:10}}},
+          tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmt(c.parsed.y)}}},
+        scales:{y:{ticks:{callback:v=>Math.round(v/1000)+"k"}}}},plugins:[endLabelPlugin]});
+  }
+}
+function renderFireTab(){
+  const yy=years[year]||emptyYear();
+  const fire=settings.fire||{items:[],entnahmerate:0.026};
+  const fixSum=fixFireTotal(yy.fixkosten||{});
+  const fixSumAll=(yy.fixkosten?.items||[]).reduce((a,i)=>a+fixItemTotal(i),0);
+  const ccSum=ccAnnualEstimate(yy);
+  const fireExtraSum=(fire.items||[]).reduce((a,i)=>a+(i.value||0),0);
+  const fSum=fixSum+ccSum+fireExtraSum;
+  const noetig=fire.entnahmerate?fSum/fire.entnahmerate:0;
+  let h='<p class="sectionCap">FIRE-Berechnung</p><div class="card">'+
     '<p class="hint" style="margin-bottom:8px">Fixkosten und Kreditkarten fliessen automatisch ein (spiegeln Fixkosten- bzw. Kreditkarten-Tab; bei unvollständigem Jahr wird Ø/Monat × 12 hochgerechnet). Zusätzlich lassen sich variable Jahreskosten wie Urlaub oder Essen ergänzen, die dort nicht erfasst sind.</p>'+
     '<table class="ledger"><tbody>'+
     '<tr><td class="labCol">Fixkosten '+year+' <span class="hint">(automatisch, nur „Für FIRE“-Positionen'+(fixSumAll>fixSum?' – '+fmt(fixSumAll-fixSum)+' ausgeschlossen':'')+', siehe Fixkosten-Tab)</span></td>'+
@@ -1440,7 +1498,19 @@ function renderMehr(){
     '<div class="statLine"><span>Entnahmerate (%)</span><b><input data-scope="settings" data-path="fire.entnahmerate" data-kind="pct" value="'+fmtPct(fire.entnahmerate||0.026)+'" style="width:70px"></b></div>'+
     '<div class="statLine"><span>Benötigtes Vermögen</span><b class="num"><span class="dblRule">'+fmt(noetig)+'</span></b></div>'+
     '<div class="statLine"><span>Ziel-Vermögen</span><b><input data-scope="settings" data-path="fire.vermoegen" data-kind="num" value="'+fmtInp(fire.vermoegen||0)+'" style="width:110px"></b></div></div>';
-  h+='<p class="sectionCap">Meine Finanzregeln</p><div class="card">';
+  h+='<p class="sectionCap">Jahresvergleich</p><div class="card"><div class="chartBox"><canvas id="cVergleich"></canvas></div></div>';
+  $('tabFire').innerHTML=h;
+  const ys=Object.keys(years).sort();
+  const ends=ys.map(y=>{const yd=years[y]; const a=(yd.accounts||[]);
+    const l13Konto=yd.netto?.lohn13Konto, l13Amt=yd.netto?.lohn13Applied||0;
+    return a.reduce((t,ac)=>{const s=accountSaldi(ac)[11]+(ac.name===l13Konto?l13Amt:0);return t+s;},0);});
+  if(chartVergleich)chartVergleich.destroy();
+  chartVergleich=new Chart($('cVergleich'),{type:'bar',data:{labels:ys,
+    datasets:[{label:'Nettowert Ende Jahr',data:ends,backgroundColor:'#9184d9',borderRadius:8}]},
+    options:{plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>Math.round(v/1000)+"k"}}}}});
+}
+function renderSettings(){
+  let h='<p class="sectionCap">Meine Finanzregeln</p><div class="card">';
   (settings.rules||[]).forEach((r,ix)=>{
     h+='<div class="statLine"><span style="flex:1"><b>'+esc(r.nr||(ix+1)+'.')+'</b> '+
       '<div class="labEdit" contenteditable="plaintext-only" data-scope="settings" data-path="rules.'+ix+'.text">'+esc(r.text)+'</div></span>'+
@@ -1469,34 +1539,13 @@ function renderMehr(){
       '<button class="miniBtn '+(settings.notifyEnabled?'':'ghost')+'" data-act="toggleNotify">'+(settings.notifyEnabled?'Aktiviert':'Aktivieren')+'</button></div>';
   }
   h+='</div>';
-  h+='<p class="sectionCap">Jahresvergleich</p><div class="card"><div class="chartBox"><canvas id="cVergleich"></canvas></div></div>';
   h+='<p class="sectionCap">Daten</p><div class="card">'+
     '<div class="statLine"><span>Excel-Daten importieren<br><span class="hint">seed.json vom Gerät auswählen – nicht ins Repo hochladen!</span></span><button class="miniBtn" data-act="importSeed">Importieren</button></div>'+
     '<input type="file" id="seedFile" accept=".json,application/json" class="hidden">'+
     '<div class="statLine"><span>Backup als JSON herunterladen</span><button class="miniBtn ghost" data-act="exportJson">Export</button></div>'+
     '<div class="statLine"><span id="mailLine"></span><button class="miniBtn ghost" data-act="logout">Abmelden</button></div></div>';
-  $('tabMehr').innerHTML=h;
+  $('tabSettings').innerHTML=h;
   if(auth?.currentUser) $('mailLine').textContent=auth.currentUser.email||'Google-Konto';
-  if(chartDepot)chartDepot.destroy();
-  if(depotEingezahlt&&$('cDepot')){
-    chartDepot=new Chart($('cDepot'),{type:'line',data:{labels:MONTHS.map(m=>m.slice(0,3)),
-      datasets:[
-        {label:'Eingezahlt',data:depotEingezahlt,borderColor:'#8B8FA8',borderDash:[4,3],fill:false,tension:.2,pointRadius:0},
-        {label:'Depotwert',data:depotWerte,borderColor:'#9184d9',backgroundColor:'rgba(145,132,217,.14)',fill:true,tension:.25,borderWidth:2.5,spanGaps:true,pointRadius:2}
-      ]},
-      options:{layout:{padding:{right:44}},interaction:{mode:'index',intersect:false},
-        plugins:{legend:{display:true,labels:{boxWidth:10,font:{size:10}}},
-          tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmt(c.parsed.y)}}},
-        scales:{y:{ticks:{callback:v=>Math.round(v/1000)+"k"}}}},plugins:[endLabelPlugin]});
-  }
-  const ys=Object.keys(years).sort();
-  const ends=ys.map(y=>{const yd=years[y]; const a=(yd.accounts||[]);
-    const l13Konto=yd.netto?.lohn13Konto, l13Amt=yd.netto?.lohn13Applied||0;
-    return a.reduce((t,ac)=>{const s=accountSaldi(ac)[11]+(ac.name===l13Konto?l13Amt:0);return t+s;},0);});
-  if(chartVergleich)chartVergleich.destroy();
-  chartVergleich=new Chart($('cVergleich'),{type:'bar',data:{labels:ys,
-    datasets:[{label:'Nettowert Ende Jahr',data:ends,backgroundColor:'#9184d9',borderRadius:8}]},
-    options:{plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>Math.round(v/1000)+"k"}}}}});
 }
 
 /* ================= AKTIONEN ================= */
