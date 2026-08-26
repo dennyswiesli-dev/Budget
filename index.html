@@ -653,6 +653,9 @@ document.addEventListener('focusout',e=>{
       if(settings.dayLockedAccNames?.includes(oldVal)){
         settings.dayLockedAccNames=settings.dayLockedAccNames.map(n=>n===oldVal?newVal:n); save('settings');
       }
+      if(settings.sparquoteExcludedAccNames?.includes(oldVal)){
+        settings.sparquoteExcludedAccNames=settings.sparquoteExcludedAccNames.map(n=>n===oldVal?newVal:n); save('settings');
+      }
       if(settings.lohnkontoAccName===oldVal){ settings.lohnkontoAccName=newVal; save('settings'); }
       if(openAccOptions.has(oldVal)){ openAccOptions.delete(oldVal); openAccOptions.add(newVal); }
     }
@@ -723,7 +726,7 @@ function renderDash(){
   const rendite=depotRendite(yy);
   const nw=accs.reduce((a,ac)=>a+acctSaldoAt(ac,nowMi),0)+rendite;
   const nwStart=accs.reduce((a,ac)=>a+(ac.start||0),0);
-  const gespart=accs.reduce((a,ac)=>a+acctGespart(ac),0);
+  const gespart=accs.filter(ac=>!isSparquoteExcludedName(ac.name)).reduce((a,ac)=>a+acctGespart(ac),0);
   const lohnJahr=yy.lohnJahr||Math.round(c.inc*13);
   const bonus=yy.bonus||0, bonusIncl=!!yy.bonusIncl;
   const lohnEffektiv=lohnJahr+(bonusIncl?bonus:0);
@@ -909,6 +912,11 @@ function renderMonat(){
 // bei normalen Konten würde das sonst bereits real eingetragene Werte
 // (z.B. weil der Lohn schon eingegangen ist) fälschlich unterschlagen.
 function isDepotName(name){ return (settings.depotAccNames||[]).includes(name); }
+// Konten wie eine BVG-/Vorsorgeeinlage, deren Einzahlungen bereits vor dem
+// getrackten Nettolohn abgezogen wurden - würden sonst als zusätzliches
+// "Sparen" gezählt und die Sparquote künstlich aufblähen. Zählen weiterhin
+// normal zum Total-Nettowert, fliessen aber nicht in die Sparquote ein.
+function isSparquoteExcludedName(name){ return (settings.sparquoteExcludedAccNames||[]).includes(name); }
 function isNotgroschenName(name){
   if(settings.notgroschenAccName!=null) return settings.notgroschenAccName===name;
   return /sparkonto/i.test(name)&&!/steuer/i.test(name);
@@ -1053,10 +1061,12 @@ function renderKonten(){
     const isDepot=depotAccs.includes(a);
     const isDayLocked=isDayLockedName(a.name);
     const isLohnkonto=settings.lohnkontoAccName===a.name;
+    const isSparquoteExcl=isSparquoteExcludedName(a.name);
     const badges=(a===notAcc?'<span class="pill" title="Notgroschen-Konto">'+ic('star')+'Notgroschen</span>':'')+
       (isDepot?'<span class="pill" title="Depot-/Investitionskonto">'+ic('trend')+'Depot</span>':'')+
       (isLohnkonto?'<span class="pill" title="Wird mit Startkapital im Monat-Tab synchronisiert">'+ic('link')+'Lohnkonto-Sync</span>':'')+
-      (isDayLocked?'<span class="pill" title="Zählt aktuellen Monat erst ab Investitionstag">'+ic('hourglass')+'Tages-Sperre</span>':'');
+      (isDayLocked?'<span class="pill" title="Zählt aktuellen Monat erst ab Investitionstag">'+ic('hourglass')+'Tages-Sperre</span>':'')+
+      (isSparquoteExcl?'<span class="pill" title="Zählt zum Total-Nettowert, aber nicht zur Sparquote">'+ic('warn')+'Nicht in Sparquote</span>':'');
     const optOpen=openAccOptions.has(a.name);
     h+='<div class="card"><div class="cardHeadRow"><h3><div class="labEdit" contenteditable="plaintext-only" data-path="accounts.'+ai+'.name" data-kind="text" style="font-family:\'Inter\',sans-serif;font-size:1.08rem">'+esc(a.name)+'</div></h3></div>'+
       (badges?'<div class="cardActions" style="margin-bottom:6px">'+badges+'</div>':'')+
@@ -1073,7 +1083,9 @@ function renderKonten(){
         '<div class="statLine"><span>Tages-Sperre<br><span class="hint">Zu-/Abgänge im laufenden Monat zählen erst ab dem Investitionstag (siehe Investitionen → Depot-Wertentwicklung)</span></span>'+
         (isDayLocked?'<button class="miniBtn" data-act="unmarkDayLock" data-i="'+ai+'">Aktiv ✓</button>':'<button class="miniBtn ghost" data-act="markDayLock" data-i="'+ai+'">Aktivieren</button>')+'</div>'+
         '<div class="statLine"><span>Lohnkonto-Sync<br><span class="hint">'+ic('warn')+'Überschreibt den Saldo des aktuellen Monats laufend mit dem Startkapital aus dem Monat-Tab</span></span>'+
-        (isLohnkonto?'<button class="miniBtn" data-act="unmarkLohnkonto" data-i="'+ai+'">Aktiv ✓</button>':'<button class="miniBtn ghost" data-act="markLohnkonto" data-i="'+ai+'">Aktivieren</button>')+'</div>'
+        (isLohnkonto?'<button class="miniBtn" data-act="unmarkLohnkonto" data-i="'+ai+'">Aktiv ✓</button>':'<button class="miniBtn ghost" data-act="markLohnkonto" data-i="'+ai+'">Aktivieren</button>')+'</div>'+
+        '<div class="statLine"><span>Aus Sparquote ausschliessen<br><span class="hint">Für Konten wie eine BVG-/Vorsorgeeinlage, deren Einzahlungen bereits vor dem getrackten Nettolohn abgezogen wurden - zählt weiterhin zum Total-Nettowert, aber nicht mehr zur Sparquote</span></span>'+
+        (isSparquoteExcl?'<button class="miniBtn" data-act="unmarkSparquoteExcl" data-i="'+ai+'">Aktiv ✓</button>':'<button class="miniBtn ghost" data-act="markSparquoteExcl" data-i="'+ai+'">Aktivieren</button>')+'</div>'
       ):'');
     if(isLohnkonto){
       // Kompakte Ansicht: bei aktivem Sync gibt es nichts Monatliches zu pflegen,
@@ -1731,6 +1743,15 @@ async function handleAction(d){
       const acc=yy.accounts[+d.i]; if(!acc||!settings.dayLockedAccNames) return;
       settings.dayLockedAccNames=settings.dayLockedAccNames.filter(n=>n!==acc.name);
       save('settings'); toast('„'+acc.name+'“: Tages-Sperre entfernt'); renderTab(); return; }
+    case 'markSparquoteExcl': {
+      const acc=yy.accounts[+d.i]; if(!acc) return;
+      settings.sparquoteExcludedAccNames=settings.sparquoteExcludedAccNames||[];
+      if(!settings.sparquoteExcludedAccNames.includes(acc.name)) settings.sparquoteExcludedAccNames.push(acc.name);
+      save('settings'); toast('„'+acc.name+'“ von der Sparquote ausgeschlossen'); renderTab(); return; }
+    case 'unmarkSparquoteExcl': {
+      const acc=yy.accounts[+d.i]; if(!acc||!settings.sparquoteExcludedAccNames) return;
+      settings.sparquoteExcludedAccNames=settings.sparquoteExcludedAccNames.filter(n=>n!==acc.name);
+      save('settings'); toast('„'+acc.name+'“ zählt wieder zur Sparquote'); renderTab(); return; }
     case 'markLohnkonto': {
       const acc=yy.accounts[+d.i]; if(!acc) return;
       if(!confirm('„'+acc.name+'“ mit dem Monat-Startkapital synchronisieren?\n\n'+
