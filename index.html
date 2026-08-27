@@ -686,7 +686,12 @@ document.addEventListener('focusout',e=>{
 document.addEventListener('change',e=>{
   const el=e.target; if(!el.dataset||!el.dataset.path||el.classList.contains('labEdit')) return;
   const kind=el.dataset.kind;
-  const val=kind==='num'?pAmt(el.value):kind==='int'?pInt(el.value):kind==='rate'?pRate(el.value):kind==='pct'?pPct(el.value):kind==='bool'?el.checked:el.value;
+  // Felder mit Placeholder (z.B. Depotwert "eintragen") sind optional - ein
+  // geleertes Feld muss wieder als "nicht erfasst" (null) gelten statt als
+  // tatsächlicher Wert 0, sonst wird z.B. ein leerer Depotwert als Totalverlust
+  // gewertet statt einfach wieder den Platzhalter zu zeigen.
+  const clearedOptional=el.placeholder&&el.value.trim()==='';
+  const val=clearedOptional?null:kind==='num'?pAmt(el.value):kind==='int'?pInt(el.value):kind==='rate'?pRate(el.value):kind==='pct'?pPct(el.value):kind==='bool'?el.checked:el.value;
   const scope=el.dataset.scope||'year';
   const root=scope==='settings'?settings:Y();
   setPath(root,el.dataset.path,val);
