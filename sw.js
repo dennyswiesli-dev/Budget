@@ -1,4 +1,4 @@
-const CACHE = 'lohnkalk-v23';
+const CACHE = 'lohnkalk-v24';
 const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 self.addEventListener('install', e => {
   e.waitUntil(

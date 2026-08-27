@@ -1469,7 +1469,11 @@ function renderInv(){
       const eingezahlt=depotEingezahltSeries(year);
       const dw=yy.depotwerte||Array(12).fill(null);
       depotEingezahlt=eingezahlt; depotWerte=dw;
-      let lastWertMi=-1; dw.forEach((w,mi)=>{ if(w!=null) lastWertMi=mi; });
+      // Wie bei der Nettowert-Berechnung: ein für einen späteren Monat
+      // eingetragener Depotwert soll die "aktuelle" Rendite-Anzeige nicht
+      // vorzeitig verfälschen, bevor dieser Monat tatsächlich erreicht ist.
+      const nowMiInv=(year===String(new Date().getFullYear()))?new Date().getMonth():11;
+      let lastWertMi=-1; dw.forEach((w,mi)=>{ if(w!=null&&mi<=nowMiInv) lastWertMi=mi; });
       const aktWert=lastWertMi>=0?dw[lastWertMi]:null;
       const aktEingezahlt=eingezahlt[lastWertMi>=0?lastWertMi:11];
       const rendite=aktWert!=null?aktWert-aktEingezahlt:null;
