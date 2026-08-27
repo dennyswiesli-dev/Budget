@@ -1032,7 +1032,7 @@ function depotRendite(yy){
 // Saldo eines Kontos am Ende von Monat mi (0-11), inkl. 13. Monatslohn ab Dezember
 function acctSaldoAt(a,mi){ const s=accountSaldi(a)[mi]; return mi===11?s+lohn13For(a):s; }
 function renderKonten(){
-  if(!years[year]){renderMonat();return;}
+  if(!years[year]){renderMonat();$('tabKonten').innerHTML=$('tabMonat').innerHTML;return;}
   const accs=Y().accounts||[];
   const nowMiKonten=(year===String(new Date().getFullYear()))?new Date().getMonth():11;
   const nw=MONTHS.map((_,mi)=>accs.reduce((a,ac)=>a+acctSaldoAt(ac,mi),0));
@@ -1182,7 +1182,7 @@ function fixFireTotal(fk){
   return (fk.items||[]).reduce((a,i)=>a+(i.fireExcluded?0:fixItemTotal(i)),0);
 }
 function renderFix(){
-  if(!years[year]){renderMonat();return;}
+  if(!years[year]){renderMonat();$('tabFix').innerHTML=$('tabMonat').innerHTML;return;}
   const fk=Y().fixkosten;
   const sum=(fk.items||[]).reduce((a,i)=>a+fixItemTotal(i),0);
   const prevY=years[String(+year-1)];
@@ -1272,7 +1272,7 @@ function ccAnnualEstimate(yy){
   return Math.round((own.avg*12+shared.avgNormal/2*12)*100)/100;
 }
 function renderKK(){
-  if(!years[year]){renderMonat();return;}
+  if(!years[year]){renderMonat();$('tabKK').innerHTML=$('tabMonat').innerHTML;return;}
   const yy=Y();
   const cc=yy.ccCalc=yy.ccCalc||{current:[],next:[],cashbackRate:0.003};
   let h='<div class="card"><div class="statLine"><span>Cashback-Satz (%)</span>'+
