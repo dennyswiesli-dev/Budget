@@ -1029,10 +1029,13 @@ function depotEingezahltSeries(targetYear){
   // Regelmässige Transfers/Investitionen passieren erst um einen bestimmten Tag
   // im Monat (z.B. 26.) - vor diesem Tag ist der laufende Monat im Depotwert
   // noch nicht angekommen, darf also auch bei "Eingezahlt" noch nicht mitzählen.
+  // Bereits vorausgefüllte spätere Monate (z.B. per Vorlage) dürfen erst recht
+  // nicht mitzählen, solange dieser Monat noch gar nicht erreicht ist.
   const now=new Date();
   if(String(targetYear)===String(now.getFullYear())){
     const transferDay=settings.depotTransferDay||26;
     if(now.getDate()<transferDay) invByMonth[now.getMonth()]=0;
+    for(let mi=now.getMonth()+1;mi<12;mi++) invByMonth[mi]=0;
   }
   let cum=base; return invByMonth.map(v=>cum=Math.round((cum+v)*100)/100);
 }
