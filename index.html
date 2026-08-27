@@ -879,7 +879,7 @@ function sideCard(side,title){
   if(side==='current') h+='<div class="cardActions"><button class="miniBtn ghost" data-act="restNext">Rest → Folgemonat</button> '+
     '<button class="miniBtn" data-act="monthRoll">Monatswechsel</button></div>';
   h+='<table class="ledger"><tbody>';
-  h+='<tr><td>Startkapital Zahlungskonto</td><td>'+inp('calc.'+side+'.start',s.start)+'</td><td></td></tr>';
+  h+='<tr><td>Startkapital Zahlungskonto</td><td>'+inp('calc.'+side+'.start',s.start,{cls:'inpWide'})+'</td><td></td></tr>';
   (s.income||[]).forEach((i,ix)=>{
     h+='<tr><td class="labCol">'+inp('calc.'+side+'.income.'+ix+'.label',i.label,{lab:1,kind:'text'})+'</td>'+
        '<td>'+inp('calc.'+side+'.income.'+ix+'.value',i.value)+'</td>'+
@@ -1125,7 +1125,7 @@ function renderKonten(){
         '<p class="hint" style="margin:2px 0 8px">Für Budget Ferien/Anschaffungen oder Investitionen verfügbar, sobald positiv.</p>'):'')+
       '<div class="scrollX"><table class="ledger"><thead><tr><th>Monat</th><th>Prognose</th>'+
       '<th>＋</th><th>−</th><th>Saldo</th></tr></thead><tbody>';
-    h+='<tr><td class="mCol">Start</td><td></td><td></td><td></td><td>'+inp('accounts.'+ai+'.start',a.start)+'</td></tr>';
+    h+='<tr><td class="mCol">Start</td><td></td><td></td><td></td><td>'+inp('accounts.'+ai+'.start',a.start,{cls:'inpWide'})+'</td></tr>';
     MONTHS.forEach((M,mi)=>{
       const m=a.months[mi]||{};
       h+='<tr><td class="mCol">'+M.slice(0,3)+'</td>'+
