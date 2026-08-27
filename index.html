@@ -747,7 +747,7 @@ function renderDash(){
   const c=calcSide(yy.calc.current);
   const accs=yy.accounts||[];
   const nowMi=(year===String(new Date().getFullYear()))?new Date().getMonth():11;
-  const rendite=depotRendite(yy);
+  const rendite=depotRendite(yy,nowMi);
   const nw=accs.reduce((a,ac)=>a+acctSaldoAt(ac,nowMi),0)+rendite;
   const nwStart=accs.reduce((a,ac)=>a+(ac.start||0),0);
   const gespart=accs.filter(ac=>!isSparquoteExcludedName(ac.name)).reduce((a,ac)=>a+acctGespart(ac),0);
@@ -1044,11 +1044,16 @@ function depotEingezahltSeries(targetYear){
 // Monat pflegt). Wird zusätzlich zu den reinen Kontosalden (die nur
 // Zahlungsbewegungen abbilden) zum Nettowert addiert, da sonst
 // Kursgewinne im Depot nirgends im Vermögen auftauchen würden.
-function depotRendite(yy){
+// uptoMi (optional): nur Depotwerte bis zu diesem Monat berücksichtigen. Ohne
+// das würde z.B. ein testweise für einen späteren Monat (etwa September)
+// eingetragener Depotwert bereits den "aktuellen" (z.B. August-)Nettowert
+// verfälschen, weil dessen Kursgewinn/-verlust gegen die zu diesem späteren
+// Monat bereits höhere Summe an Einzahlungen gerechnet würde.
+function depotRendite(yy,uptoMi){
   const depotAccs=findDepotAccs(yy.accounts||[]);
   if(!depotAccs.length) return 0;
   const dw=yy.depotwerte||[];
-  let lastWertMi=-1; dw.forEach((w,mi)=>{ if(w!=null) lastWertMi=mi; });
+  let lastWertMi=-1; dw.forEach((w,mi)=>{ if(w!=null&&(uptoMi==null||mi<=uptoMi)) lastWertMi=mi; });
   if(lastWertMi<0) return 0;
   const saldoAtWert=depotAccs.reduce((a,ac)=>a+acctSaldoAt(ac,lastWertMi),0);
   return Math.round((dw[lastWertMi]-saldoAtWert)*100)/100;
@@ -1541,7 +1546,7 @@ function renderFireTab(){
   // (Kosten − AHV/PK-Rente ab Rentenalter) bis zur Lebenserwartung.
   const nowMi2=(year===String(new Date().getFullYear()))?new Date().getMonth():11;
   const accs2=yy.accounts||[];
-  const rendite2=depotRendite(yy);
+  const rendite2=depotRendite(yy,nowMi2);
   const nw2=accs2.reduce((a,ac)=>a+acctSaldoAt(ac,nowMi2),0)+rendite2;
   const depotAccs2=findDepotAccs(accs2);
   const depotToday2=depotAccs2.reduce((a,ac)=>a+acctSaldoAt(ac,nowMi2),0)+rendite2;
