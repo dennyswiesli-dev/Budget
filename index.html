@@ -272,16 +272,17 @@ h3 input.titleInp:focus{outline:none;border-bottom:2px solid var(--primary)}
 .dashCell .val{font-size:1.2rem;font-weight:700;margin-top:4px;font-family:'Inter',sans-serif}
 details summary{list-style:none;cursor:pointer}
 details summary::-webkit-details-marker{display:none}
+.mCol{width:1%;white-space:nowrap!important}
 @media(max-width:430px){
-  table.ledger{font-size:.76rem}
+  table.ledger{font-size:.74rem}
   table.ledger td{padding:4px 2px;white-space:normal}
   table.ledger td:first-child{white-space:normal}
-  table.ledger td input{width:56px;font-size:.76rem;padding:4px 2px}
-  table.ledger td input.inpWide{width:98px}
+  table.ledger td input{width:62px;font-size:.74rem;padding:4px 2px}
+  table.ledger td input.inpWide{width:100px}
   table.ledger td.satzCol{max-width:66px}
   .miniHint{font-size:.58rem}
-  table.ledger th{font-size:.58rem;padding:4px 2px}
-  .pill{font-size:.6rem;padding:2px 7px}
+  table.ledger th{font-size:.56rem;padding:4px 1px}
+  .pill{font-size:.58rem;padding:2px 6px}
   .kb .val{font-size:.94rem}
   main{padding:12px 8px 8px}
 }
@@ -1124,10 +1125,10 @@ function renderKonten(){
         '<p class="hint" style="margin:2px 0 8px">Für Budget Ferien/Anschaffungen oder Investitionen verfügbar, sobald positiv.</p>'):'')+
       '<div class="scrollX"><table class="ledger"><thead><tr><th>Monat</th><th>Prognose</th>'+
       '<th>＋</th><th>−</th><th>Saldo</th></tr></thead><tbody>';
-    h+='<tr><td>Start</td><td></td><td></td><td></td><td>'+inp('accounts.'+ai+'.start',a.start)+'</td></tr>';
+    h+='<tr><td class="mCol">Start</td><td></td><td></td><td></td><td>'+inp('accounts.'+ai+'.start',a.start)+'</td></tr>';
     MONTHS.forEach((M,mi)=>{
       const m=a.months[mi]||{};
-      h+='<tr><td>'+M.slice(0,3)+'</td>'+
+      h+='<tr><td class="mCol">'+M.slice(0,3)+'</td>'+
         '<td>'+inp('accounts.'+ai+'.months.'+mi+'.prognose',m.prognose??'')+'</td>'+
         '<td>'+inp('accounts.'+ai+'.months.'+mi+'.plus',m.plus||'')+'</td>'+
         '<td>'+inp('accounts.'+ai+'.months.'+mi+'.minus',m.minus||'')+'</td>'+
@@ -1322,7 +1323,7 @@ function renderKK(){
     h+='<div class="card"><h3>'+title+'</h3><table class="ledger"><thead><tr><th>Monat</th><th>Total</th>'+
       (shared?'<th>davon Ferien/Einmalig</th>':'')+'</tr></thead><tbody>';
     MONTHS.forEach((M,mi)=>{
-      h+='<tr><td>'+M.slice(0,3)+'</td><td>'+inp(key+'.'+mi+'.amount',totals[mi]||'')+'</td>'+
+      h+='<tr><td class="mCol">'+M.slice(0,3)+'</td><td>'+inp(key+'.'+mi+'.amount',totals[mi]||'')+'</td>'+
         (shared?'<td>'+inp(key+'.'+mi+'.ferien',ferien[mi]||'')+'</td>':'')+'</tr>';});
     h+='</tbody></table>'+
       '<div class="statLine"><span>Ø pro Monat ('+n+' Monate)</span><b class="num">'+fmt(avg)+'</b></div>'+
@@ -1478,7 +1479,7 @@ function renderInv(){
       MONTHS.forEach((M,mi)=>{
         const w=dw[mi];
         const r=w!=null?w-eingezahlt[mi]:null;
-        h+='<tr><td>'+M.slice(0,3)+'</td><td class="num">'+fmt(eingezahlt[mi])+'</td>'+
+        h+='<tr><td class="mCol">'+M.slice(0,3)+'</td><td class="num">'+fmt(eingezahlt[mi])+'</td>'+
           '<td>'+inp('depotwerte.'+mi,w??'',{placeholder:'eintragen',cls:'inpWide'})+'</td>'+
           '<td class="num '+(r!=null&&r<0?'neg':r!=null?'pos':'')+'">'+(r!=null?fmt(r):'–')+'</td></tr>';
       });
