@@ -410,7 +410,10 @@ const configured=FIREBASE_CONFIG.apiKey && !FIREBASE_CONFIG.apiKey.startsWith("H
 const MONTHS=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
 const GROUP_NAMES=['Fixe Ausgaben','Sparen & Investieren','Rechnungen & Variables'];
 let db=null,auth=null,uid=null;
-let settings={currency:'CHF',lohnkontoZiel:4000,notgroschenZiel:30000,rules:[],fire:{items:[],entnahmerate:0.026,vermoegen:0,birthYear:null,retireAge:60,lifeExpectancy:90,pensionAnnual:0,pensionStartAge:65},templates:{monat:[],fixkosten:[]}};
+function defaultSettings(){
+  return {currency:'CHF',lohnkontoZiel:4000,notgroschenZiel:30000,rules:[],fire:{items:[],entnahmerate:0.026,vermoegen:0,birthYear:null,retireAge:60,lifeExpectancy:90,pensionAnnual:0,pensionStartAge:65},templates:{monat:[],fixkosten:[]}};
+}
+let settings=defaultSettings();
 let years={};            // {'2026': {...}}
 let year=String(new Date().getFullYear());
 let dirty={};            // zu speichernde Docs
@@ -509,8 +512,16 @@ window.addEventListener('beforeunload',e=>{
   if(Object.keys(dirty).length){ e.preventDefault(); e.returnValue=''; }
 });
 async function loadAll(){
-  const s=await col().get();
+  // Auf saubere Standardwerte zurücksetzen, bevor die Daten des jetzt
+  // angemeldeten Accounts geladen werden - sonst blieben bei einem
+  // Accountwechsel (Logout/neuer Login) im selben Tab die Einstellungen
+  // (Finanzregeln, FIRE, Lohn/BVG etc.) des vorherigen Accounts im Speicher
+  // stehen und wurden fälschlich unter dem neuen Account angezeigt bzw.
+  // beim nächsten Speichern sogar dorthin geschrieben.
+  settings=defaultSettings();
   years={};
+  openAccOptions.clear(); openFixMonths.clear();
+  const s=await col().get();
   s.docs.forEach(d=>{ if(d.id==='settings') settings={...settings,...d.data()};
     else years[d.id]=normalizeYear(d.data()); });
   const ys=Object.keys(years).sort();
@@ -552,7 +563,8 @@ if(configured){
     if(u){ uid=u.uid; $('authView').classList.add('hidden');
       $('appView').classList.remove('hidden'); await loadAll(); checkMonthReminder(); }
     else { uid=null; $('appView').classList.add('hidden');
-      $('authView').classList.remove('hidden'); }
+      $('authView').classList.remove('hidden');
+      settings=defaultSettings(); years={}; openAccOptions.clear(); openFixMonths.clear(); }
   });
 }else{
   $('authView').classList.remove('hidden');
