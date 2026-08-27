@@ -1668,7 +1668,8 @@ function renderSettings(){
     '<div class="statLine"><span>Excel-Daten importieren<br><span class="hint">seed.json vom Gerät auswählen – nicht ins Repo hochladen!</span></span><button class="miniBtn" data-act="importSeed">Importieren</button></div>'+
     '<input type="file" id="seedFile" accept=".json,application/json" class="hidden">'+
     '<div class="statLine"><span>Backup als JSON herunterladen</span><button class="miniBtn ghost" data-act="exportJson">Export</button></div>'+
-    '<div class="statLine"><span id="mailLine"></span><button class="miniBtn ghost" data-act="logout">Abmelden</button></div></div>';
+    '<div class="statLine"><span id="mailLine"></span><button class="miniBtn ghost" data-act="logout">Abmelden</button></div>'+
+    '<div class="statLine"><span>Account unwiderruflich löschen<br><span class="hint">Löscht alle gespeicherten Daten (Konten, Fixkosten, Einstellungen etc.) und den Login selbst. Kann nicht rückgängig gemacht werden.</span></span><button class="miniBtn danger" data-act="deleteAccount">Account löschen</button></div></div>';
   $('tabSettings').innerHTML=h;
   if(auth?.currentUser) $('mailLine').textContent=auth.currentUser.email||'Google-Konto';
 }
@@ -1849,6 +1850,20 @@ async function handleAction(d){
       }
       save('settings'); renderTab(); return; }
     case 'logout': auth.signOut(); return;
+    case 'deleteAccount': {
+      if(!confirm('Account und ALLE gespeicherten Daten wirklich unwiderruflich löschen? Das kann nicht rückgängig gemacht werden.')) return;
+      const user=auth.currentUser; if(!user) return;
+      try{
+        const docs=await col().get();
+        await Promise.all(docs.docs.map(d=>d.ref.delete()));
+        await user.delete();
+        toast('Account gelöscht');
+      }catch(err){
+        if(err?.code==='auth/requires-recent-login'){
+          toast('Aus Sicherheitsgründen musst du dich neu anmelden, bevor der Account gelöscht werden kann. Bitte abmelden, erneut einloggen und nochmal versuchen.');
+        }else toast('Löschen fehlgeschlagen: '+(err?.message||err));
+      }
+      return; }
     default: return;
   }
   save(year); renderTab();
