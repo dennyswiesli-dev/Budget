@@ -1256,7 +1256,8 @@ function renderFix(){
   h+='<tr class="sumRow"><td>Total pro Jahr</td><td class="num"><span class="dblRule">'+fmt(sum)+'</span></td><td></td><td></td></tr>';
   h+='</tbody></table>'+
     '<div class="statLine"><span>Empfohlener Übertrag/Monat (Total ÷ 12)</span><b class="num">'+fmt(sum/12)+'</b></div>'+
-    '<div class="statLine"><span>Gewählter Übertrag/Monat</span><b>'+inp('fixkosten.transfer',fk.transfer)+'</b></div></div>';
+    '<div class="statLine"><span>Gewählter Übertrag/Monat</span><b>'+inp('fixkosten.transfer',fk.transfer)+'</b></div>'+
+    '<div class="statLine"><span>Auf alle 12 Monate unten übernehmen</span><button class="miniBtn ghost" data-act="applyFixTransfer">Anwenden</button></div></div>';
   // Steuer-/Fixkostenkonto Verlauf
   const abgAuto=fixAbgByMonth(fk);
   let run=fk.base||0, einSum=0, abgSum=0;
@@ -1747,6 +1748,11 @@ async function handleAction(d){
       acc.months=acc.months||MONTHS.map(()=>({plus:0,minus:0}));
       acc.months.forEach(m=>{ m.prognose=v; });
       toast('Prognose für alle 12 Monate auf '+fmt(v)+' gesetzt'); break; }
+    case 'applyFixTransfer': {
+      const fk=yy.fixkosten||{}; const v=fk.transfer||0;
+      if(!Array.isArray(fk.monate)||fk.monate.length!==12) return;
+      fk.monate.forEach(m=>{ m.ein=v; });
+      toast('Einzahlung für alle 12 Monate auf '+fmt(v)+' gesetzt'); break; }
     case 'addAcc': yy.accounts.push({name:'Neues Konto',start:0,
       months:MONTHS.map(()=>({plus:0,minus:0})),extra:[]}); break;
     case 'delAcc': if(confirm('Konto wirklich löschen?')) yy.accounts.splice(+d.i,1); else return; break;
