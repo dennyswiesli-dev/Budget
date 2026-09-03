@@ -736,7 +736,12 @@ function acctGespart(ac){
   const dayLocked=isDayLockedName(ac.name);
   return (ac.months||[]).reduce((x,m,mi)=>{
     const pending=dayLocked&&monthIsCurrentPending(mi);
-    const plusEff=pending?0:((m.plus||0)||(m.prognose!=null?m.prognose:0));
+    // Vor dem Transfertag ist der reale eingetragene Betrag des laufenden
+    // Monats noch nicht sicher (Tages-Sperre) - für die Jahres-Sparquote
+    // (die für jeden anderen zukünftigen Monat ohnehin die Prognose nutzt)
+    // soll trotzdem weiterhin die Prognose zählen, statt den Monat auf 0 zu
+    // setzen und die Quote jeden Monatsanfang künstlich einbrechen zu lassen.
+    const plusEff=pending?(m.prognose!=null?m.prognose:0):((m.plus||0)||(m.prognose!=null?m.prognose:0));
     const minusEff=pending?0:(m.minus||0);
     return x+plusEff-minusEff;
   },0)+lohn13For(ac);
