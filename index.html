@@ -1448,11 +1448,24 @@ function renderLohn(){
 }
 
 /* ================= MEHR ================= */
+// Sortier-Schlüssel für die freitextliche Datumsspalte bei "Grössere
+// Anschaffungen" - versteht ISO (YYYY-MM-DD, Standard beim Neuanlegen) und
+// deutsches Format (DD.MM.JJJJ/JJ); nicht erkennbare Werte landen am Ende,
+// statt die Sortierung der übrigen Zeilen zu stören.
+function invDateKey(s){
+  if(!s) return Infinity;
+  const t=String(s).trim();
+  const de=/^(\d{1,2})\.(\d{1,2})\.(\d{2,4})$/.exec(t);
+  if(de){ let[,d,m,y]=de; if(y.length===2) y='20'+y; const dt=new Date(+y,+m-1,+d); return isNaN(dt)?Infinity:dt.getTime(); }
+  const p=Date.parse(t);
+  return isNaN(p)?Infinity:p;
+}
 function renderInv(){
   const yy=years[year]||emptyYear();
   if(years[year]&&!yy.depotwerte) yy.depotwerte=Array(12).fill(null);
+  if(years[year]&&Array.isArray(yy.investments)) yy.investments.sort((a,b)=>invDateKey(a.date)-invDateKey(b.date));
   let h='<p class="sectionCap">Grössere Anschaffungen '+year+'</p><div class="card">'+
-    '<p class="hint" style="margin-bottom:8px">Einmalige grössere Käufe (Möbel, Geräte etc.) – für laufende Aktien-/Fondsinvestitionen siehe „Depot-Wertentwicklung“ unten, basierend auf deinen als Depot markierten Konten.</p>'+
+    '<p class="hint" style="margin-bottom:8px">Einmalige grössere Käufe (Möbel, Geräte etc.) – für laufende Aktien-/Fondsinvestitionen siehe „Depot-Wertentwicklung“ unten, basierend auf deinen als Depot markierten Konten. Sortiert automatisch nach Datum.</p>'+
     '<table class="ledger"><tbody>';
   (yy.investments||[]).forEach((i,ix)=>{
     h+='<tr><td class="dateCol">'+inp('investments.'+ix+'.date',i.date,{lab:1,kind:'text'})+'</td>'+
