@@ -964,12 +964,15 @@ function accountSaldi(a){
     const applyDeferred=deferred; deferred=0;
     // Tages-gesperrte Konten (Depot/Notgroschen/manuell markiert): der laufende
     // Monat zählt komplett erst ab dem Transfertag - egal ob echter Wert oder
-    // Prognose. Bereits real erfasste Werte gehen dabei nicht verloren, sondern
-    // werden im Folgemonat nachgezogen (dort ist die Buchung ja definitiv erfolgt).
-    // Bei Depot wird das zusätzlich 1:1 durch die Depot-Rendite ausgeglichen.
+    // Prognose. Bereits real erfasste Werte (oder, solange noch nichts Reales
+    // eingetragen ist, die Prognose) gehen dabei nicht verloren, sondern werden
+    // im Folgemonat nachgezogen (dort ist die Buchung ja definitiv erfolgt) -
+    // sonst verschwindet der ganze Monat spurlos, solange nur eine Prognose und
+    // noch kein echter Wert erfasst ist. Bei Depot wird das zusätzlich 1:1
+    // durch die Depot-Rendite ausgeglichen.
     const plusEff=pending?0:((m.plus||0)||(m.prognose!=null?m.prognose:0));
     const minusEff=pending?0:(m.minus||0);
-    if(pending) deferred=(m.plus||0)-(m.minus||0);
+    if(pending) deferred=((m.plus||0)||(m.prognose!=null?m.prognose:0))-(m.minus||0);
     const usedProg=!pending&&!m.plus&&m.prognose!=null&&plusEff===m.prognose;
     run=Math.round((run+applyDeferred+plusEff-minusEff)*100)/100;
     saldi.push(run); prog.push(usedProg); wait.push(pending);
