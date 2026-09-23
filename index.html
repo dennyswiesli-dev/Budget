@@ -1157,7 +1157,7 @@ function renderKonten(){
       '<td class="num pos">'+fmt(l13)+'</td><td></td>'+
       '<td class="num">'+fmt(decFinal)+' <span class="pill" title="13. Monatslohn zusätzlich zum normalen Sparbetrag">13. Lohn</span></td></tr>';
     h+='<tr class="sumRow"><td>＋ Ende Jahr</td><td></td>'+
-      '<td class="num pos">'+fmt(plusEffSum)+'</td><td class="num neg">'+fmt(minusSum)+'</td>'+
+      '<td class="num pos">'+fmt(plusEffSum+l13)+'</td><td class="num neg">'+fmt(minusSum)+'</td>'+
       '<td class="num"><span class="dblRule">'+fmt(Number.isFinite(decFinal)?decFinal:a.start)+'</span></td></tr>';
     h+='</tbody></table></div></div>';
   });
